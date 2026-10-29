@@ -62,19 +62,12 @@ export class App {
 
   readonly showPresetModal = signal<boolean>(false);
   readonly presetModalTab = signal<'list' | 'create'>('list');
-  readonly presetFilterType = signal<'all' | 'local' | 'cloud'>('all');
   readonly newPresetName = signal<string>('');
   readonly newPresetDescription = signal<string>('');
   readonly newPresetIncludeMembers = signal<boolean>(true);
   readonly newPresetIncludeExpenses = signal<boolean>(true);
-  readonly newPresetStorageType = signal<'local' | 'cloud'>('local');
   readonly presetSuccessNotification = signal<string>('');
-
-  // Minimal 1-time Firebase Setup Modal (only if environment is not set)
-  readonly showFirebaseSetupModal = signal<boolean>(false);
-  readonly firebaseApiKeyInput = signal<string>('');
-  readonly firebaseProjectIdInput = signal<string>('');
-  readonly firebaseSetupError = signal<string>('');
+  readonly showProfileDropdown = signal<boolean>(false);
 
   // Mini Calculator State
   readonly showMiniCalc = signal<'expense' | 'payment' | null>(null);
@@ -157,13 +150,9 @@ export class App {
     return list;
   });
 
-  // Filtered Presets (All / Local / Cloud)
+  // Presets list
   readonly filteredPresets = computed(() => {
-    const list = this.splitService.customPresets();
-    const filter = this.presetFilterType();
-    if (filter === 'local') return list.filter((p) => !p.storageType || p.storageType === 'local');
-    if (filter === 'cloud') return list.filter((p) => p.storageType === 'cloud');
-    return list;
+    return this.splitService.customPresets();
   });
 
   getPayerName(memberId: string): string {
@@ -863,8 +852,6 @@ export class App {
       this.newPresetDescription.set('');
       this.newPresetIncludeMembers.set(true);
       this.newPresetIncludeExpenses.set(true);
-      // Default to cloud if signed in with Google, otherwise local
-      this.newPresetStorageType.set(this.splitService.cloudSync.currentUser() ? 'cloud' : 'local');
     }
     this.presetSuccessNotification.set('');
     this.showPresetModal.set(true);
@@ -882,20 +869,11 @@ export class App {
     }
   }
 
-  setPresetStorageChoice(choice: 'local' | 'cloud') {
-    this.newPresetStorageType.set(choice);
-  }
-
   async saveNewPresetAction() {
     const name = this.newPresetName().trim();
     if (!name) {
-      alert('Please enter a name for your preset.');
-      return;
-    }
-
-    const storageType = this.newPresetStorageType();
-    if (storageType === 'cloud' && !this.splitService.cloudSync.currentUser()) {
-      alert('Please sign in with Google first to save this preset to Cloud, or select "Save on this Device".');
+      this.presetSuccessNotification.set('Please enter a name for your preset.');
+      setTimeout(() => this.presetSuccessNotification.set(''), 3000);
       return;
     }
 
@@ -903,15 +881,12 @@ export class App {
       name,
       this.newPresetDescription(),
       this.newPresetIncludeMembers(),
-      this.newPresetIncludeExpenses(),
-      storageType
+      this.newPresetIncludeExpenses()
     );
 
     this.newPresetName.set('');
     this.newPresetDescription.set('');
-    this.presetSuccessNotification.set(
-      `Preset "${name}" saved to ${storageType === 'cloud' ? 'Cloud (Google Account)' : 'Local Storage'}!`
-    );
+    this.presetSuccessNotification.set(`Preset "${name}" saved!`);
     this.presetModalTab.set('list');
     setTimeout(() => {
       this.presetSuccessNotification.set('');
@@ -930,59 +905,34 @@ export class App {
 
   // GOOGLE SIGN-IN ACTIONS
   async signInWithGoogleAction() {
-    this.firebaseSetupError.set('');
-    if (!this.splitService.cloudSync.isConfigured()) {
-      const cfg = this.splitService.cloudSync.firebaseConfig();
-      if (cfg) {
-        this.firebaseApiKeyInput.set(cfg.apiKey || '');
-        this.firebaseProjectIdInput.set(cfg.projectId || '');
-      }
-      this.showFirebaseSetupModal.set(true);
-      return;
-    }
-
     const success = await this.splitService.cloudSync.signInWithGoogle();
     if (success) {
       await this.splitService.syncCloudPresetsOnLogin();
+      this.presetSuccessNotification.set('Signed in successfully!');
+      setTimeout(() => this.presetSuccessNotification.set(''), 3000);
     } else {
       const err = this.splitService.cloudSync.syncError();
-      if (err && err !== 'Sign-in was cancelled.') {
-        alert(err);
+      if (err && !err.toLowerCase().includes('cancel')) {
+        this.presetSuccessNotification.set(err);
+        setTimeout(() => this.presetSuccessNotification.set(''), 5000);
       }
     }
   }
 
-  async saveFirebaseSetupAction() {
-    const apiKey = this.firebaseApiKeyInput().trim();
-    const projectId = this.firebaseProjectIdInput().trim();
-
-    if (!apiKey || !projectId) {
-      this.firebaseSetupError.set('Please enter both Firebase API Key and Project ID.');
-      return;
-    }
-
-    const ok = this.splitService.cloudSync.saveConfig({ apiKey, projectId });
-    if (ok) {
-      this.showFirebaseSetupModal.set(false);
-      this.firebaseSetupError.set('');
-      const success = await this.splitService.cloudSync.signInWithGoogle();
-      if (success) {
-        await this.splitService.syncCloudPresetsOnLogin();
-      }
-    } else {
-      this.firebaseSetupError.set(
-        this.splitService.cloudSync.syncError() || 'Invalid Firebase configuration.'
-      );
-    }
+  toggleProfileDropdown(event?: Event) {
+    if (event) event.stopPropagation();
+    this.showProfileDropdown.update((v) => !v);
   }
 
-  closeFirebaseSetupModal() {
-    this.showFirebaseSetupModal.set(false);
-    this.firebaseSetupError.set('');
+  closeProfileDropdown() {
+    this.showProfileDropdown.set(false);
   }
 
   async signOutAccountAction() {
+    this.closeProfileDropdown();
     await this.splitService.cloudSync.signOutAccount();
+    this.presetSuccessNotification.set('Signed out successfully.');
+    setTimeout(() => this.presetSuccessNotification.set(''), 3000);
   }
 
   clearAllDataAction() {

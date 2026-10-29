@@ -75,16 +75,22 @@ export class RentSplitService {
   async syncCloudPresetsOnLogin() {
     try {
       const cloudPresets = await this.cloudSync.fetchCloudPresets();
-      if (cloudPresets && cloudPresets.length > 0) {
-        this.customPresets.update((localList) => {
-          const cloudIds = new Set(cloudPresets.map((p) => p.id));
-          const keptLocals = localList.filter((p) => !cloudIds.has(p.id));
-          return [...cloudPresets, ...keptLocals];
-        });
-        this.savePresetsToStorage(false);
+      const currentLocals = this.customPresets();
+
+      // If there are local presets not yet in Firestore, upload them
+      for (const p of currentLocals) {
+        if (!cloudPresets.some((cp) => cp.id === p.id)) {
+          await this.cloudSync.saveCloudPreset({ ...p, storageType: 'cloud' });
+          cloudPresets.push({ ...p, storageType: 'cloud' });
+        }
+      }
+
+      this.customPresets.set(cloudPresets);
+      this.savePresetsToStorage(false);
+      if (cloudPresets.length > 0) {
         this.addAudit(
-          'Cloud Presets Synced',
-          `Synced ${cloudPresets.length} cloud presets from Google Account`
+          'Presets Synced',
+          `Synced ${cloudPresets.length} presets with Google Account`
         );
       }
     } catch (e) {
@@ -492,8 +498,7 @@ export class RentSplitService {
     name: string,
     description: string = '',
     includeMembers: boolean = true,
-    includeExpenses: boolean = true,
-    storageType: 'local' | 'cloud' = 'local'
+    includeExpenses: boolean = true
   ): Promise<CustomPreset> {
     const membersToSave = includeMembers ? JSON.parse(JSON.stringify(this.members())) : [];
     const expensesToSave = includeExpenses ? JSON.parse(JSON.stringify(this.expenses())) : [];
@@ -506,6 +511,8 @@ export class RentSplitService {
       year: 'numeric',
     });
 
+    const isCloud = !!this.cloudSync.currentUser();
+
     const newPreset: CustomPreset = {
       id: 'preset_' + Date.now(),
       name: name.trim(),
@@ -517,24 +524,16 @@ export class RentSplitService {
       totalExpenseAmount: totalExp,
       members: membersToSave,
       expenses: expensesToSave,
-      storageType: storageType,
+      storageType: isCloud ? 'cloud' : 'local',
     };
 
     this.customPresets.update((list) => [newPreset, ...list.filter((p) => p.id !== newPreset.id)]);
     this.savePresetsToStorage(false);
 
-    if (storageType === 'cloud') {
+    if (isCloud) {
       await this.cloudSync.saveCloudPreset(newPreset);
-      this.addAudit(
-        'Preset Created (Cloud)',
-        `Saved cloud preset "${newPreset.name}" to Google Account`
-      );
-    } else {
-      this.addAudit(
-        'Preset Created (Local)',
-        `Saved preset "${newPreset.name}" on this device`
-      );
     }
+    this.addAudit('Preset Saved', `Saved preset "${newPreset.name}"`);
     return newPreset;
   }
 
@@ -570,12 +569,10 @@ export class RentSplitService {
     this.customPresets.update((list) => list.filter((p) => p.id !== presetId));
     this.savePresetsToStorage(false);
 
-    if (preset.storageType === 'cloud') {
+    if (this.cloudSync.currentUser()) {
       await this.cloudSync.deleteCloudPreset(presetId);
-      this.addAudit('Cloud Preset Deleted', `Removed cloud preset "${preset.name}" from Google Account`);
-    } else {
-      this.addAudit('Preset Deleted', `Removed local preset "${preset.name}"`);
     }
+    this.addAudit('Preset Deleted', `Removed preset "${preset.name}"`);
   }
 
   savePresetsToStorage(syncCloud: boolean = true) {

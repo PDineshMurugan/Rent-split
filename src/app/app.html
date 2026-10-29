@@ -56,34 +56,150 @@
         <span>Presets</span>
       </button>
 
-      <!-- Google Sign In (Simple on top) -->
+      <!-- Google User Profile Menu -->
       @if (splitService.cloudSync.currentUser(); as user) {
-        <div class="user-profile-header-pill" title="Signed in with Google (Presets sync to cloud)">
-          @if (user.photoURL) {
-            <img [src]="user.photoURL" alt="Google Profile" class="user-avatar-img" />
-          } @else {
-            <span class="user-avatar-circle">
-              {{ user.displayName?.charAt(0) || 'G' }}
-            </span>
-          }
-          <div class="user-profile-text">
-            <span class="user-name">{{ user.displayName?.split(' ')?.[0] || 'User' }}</span>
-          </div>
-          <button class="btn-signout-mini" (click)="signOutAccountAction()" title="Sign out of Google">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
+        <div class="user-profile-menu-container">
+          <!-- Clickable Avatar Pill Button -->
+          <button
+            type="button"
+            class="user-profile-btn"
+            [class.active]="showProfileDropdown()"
+            (click)="toggleProfileDropdown($event)"
+            [attr.aria-expanded]="showProfileDropdown()"
+            title="Account & Sync Settings"
+          >
+            <div class="profile-avatar-wrapper">
+              @if (user.photoURL) {
+                <img [src]="user.photoURL" [alt]="user.displayName || 'Google Profile'" class="user-avatar-img" />
+              } @else {
+                <span class="user-avatar-circle">
+                  {{ user.displayName?.charAt(0) || 'U' }}
+                </span>
+              }
+              <span class="profile-online-badge" title="Cloud Synced"></span>
+            </div>
+
+            <div class="profile-btn-info">
+              <span class="user-name">{{ user.displayName?.split(' ')?.[0] || 'Account' }}</span>
+            </div>
+
+            <svg
+              class="profile-chevron"
+              [class.rotated]="showProfileDropdown()"
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="6 9 12 15 18 9"/>
             </svg>
-            <span>Sign out</span>
           </button>
+
+          <!-- Dropdown Backdrop to close on click outside -->
+          @if (showProfileDropdown()) {
+            <div class="dropdown-backdrop" (click)="closeProfileDropdown()"></div>
+
+            <!-- Profile Dropdown Menu Card -->
+            <div class="user-profile-dropdown glass-panel" (click)="$event.stopPropagation()">
+              <!-- User Info Card Header -->
+              <div class="profile-dropdown-header">
+                <div class="dropdown-avatar-box">
+                  @if (user.photoURL) {
+                    <img [src]="user.photoURL" [alt]="user.displayName || 'Profile'" class="dropdown-avatar-img" />
+                  } @else {
+                    <span class="dropdown-avatar-circle">
+                      {{ user.displayName?.charAt(0) || 'U' }}
+                    </span>
+                  }
+                  <span class="dropdown-avatar-status" title="Active & Synced"></span>
+                </div>
+
+                <div class="dropdown-user-details">
+                  <strong class="dropdown-user-name">{{ user.displayName || 'Roommate' }}</strong>
+                  <span class="dropdown-user-email">{{ user.email }}</span>
+                  <div class="dropdown-sync-chip">
+                    <span class="chip-pulse-dot"></span>
+                    <span>Cloud Firestore Synced</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Household & Data Overview -->
+              <div class="profile-dropdown-meta">
+                <div class="meta-row">
+                  <span class="meta-label">Household</span>
+                  <span class="meta-val">{{ splitService.householdName() }}</span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-label">Roommates</span>
+                  <span class="meta-val">{{ splitService.members().length }} Active</span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-label">Saved Presets</span>
+                  <span class="meta-val">{{ splitService.customPresets().length }} in Cloud</span>
+                </div>
+              </div>
+
+              <!-- Quick Navigation Links -->
+              <div class="profile-dropdown-links">
+                <button
+                  type="button"
+                  class="dropdown-link-btn"
+                  (click)="closeProfileDropdown(); openPresetModal()"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="7" height="7" x="3" y="3" rx="1"/>
+                    <rect width="7" height="7" x="14" y="3" rx="1"/>
+                    <rect width="7" height="7" x="14" y="14" rx="1"/>
+                    <rect width="7" height="7" x="3" y="14" rx="1"/>
+                  </svg>
+                  <span>Manage Presets & Templates</span>
+                </button>
+
+                <button
+                  type="button"
+                  class="dropdown-link-btn"
+                  (click)="closeProfileDropdown(); openHouseholdModal()"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                  </svg>
+                  <span>Household Settings</span>
+                </button>
+              </div>
+
+              <div class="profile-dropdown-divider"></div>
+
+              <!-- Sign Out Section -->
+              <div class="profile-dropdown-footer">
+                <button
+                  type="button"
+                  class="dropdown-signout-btn"
+                  (click)="signOutAccountAction()"
+                  title="Sign out of your Google account"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
+                  </svg>
+                  <span>Sign out</span>
+                </button>
+              </div>
+            </div>
+          }
         </div>
       } @else {
         <button
           class="btn btn-google-header"
           (click)="signInWithGoogleAction()"
           [disabled]="splitService.cloudSync.isAuthLoading()"
-          title="Sign in with Google to sync presets to cloud"
+          title="Sign in with Google"
         >
           <svg width="15" height="15" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -114,23 +230,7 @@
         </button>
       }
 
-      <!-- Support Creator (Buy a Chai) -->
-      <a
-        href="https://buymeachai.ezee.li/Dinesh_Murugan"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="btn-chai-header"
-        title="Buy Dinesh Murugan P a Chai - Support Creator"
-      >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M17 8h1a4 4 0 1 1 0 8h-1"/>
-          <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/>
-          <line x1="6" y1="2" x2="6" y2="4"/>
-          <line x1="10" y1="2" x2="10" y2="4"/>
-          <line x1="14" y1="2" x2="14" y2="4"/>
-        </svg>
-        <span>Buy a Chai</span>
-      </a>
+
 
     </div>
   </header>
@@ -1140,15 +1240,14 @@
     }
   </main>
 
-  <!-- ENTERPRISE-GRADE SAAS FOOTER -->
+  <!-- APPLICATION FOOTER -->
   <footer class="app-footer">
     <div class="footer-inner">
-      <div class="footer-grid">
-        <!-- Brand & Mission Column -->
-        <div class="footer-col footer-brand-col">
+      <div class="footer-main">
+        <div class="footer-brand">
           <div class="footer-brand-header">
             <span class="footer-logo-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                 <polyline points="9 22 9 12 15 12 15 22"/>
               </svg>
@@ -1156,147 +1255,53 @@
             <span class="footer-brand-name">SplitMate</span>
           </div>
           <p class="footer-description">
-            Transparent rent splitting, exact-cent utility proration, and debt-minimized settlement for modern shared households.
+            Roommate rent splitting and shared expense management.
           </p>
-          <div class="footer-trust-badge">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </div>
+
+        <div class="footer-actions">
+          <button type="button" class="footer-btn" (click)="openPresetModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="7" height="7" x="3" y="3" rx="1"/>
+              <rect width="7" height="7" x="14" y="3" rx="1"/>
+              <rect width="7" height="7" x="14" y="14" rx="1"/>
+              <rect width="7" height="7" x="3" y="14" rx="1"/>
             </svg>
-            <span>100% Client-Side • Local First • Zero Trackers</span>
-          </div>
-        </div>
-
-        <!-- Calculation Engine Features Column -->
-        <div class="footer-col">
-          <h4 class="footer-col-title">Engine Features</h4>
-          <ul class="footer-features-list">
-            <li>
-              <span class="footer-feature-item">
-                <span class="footer-feature-dot"></span>
-                <span>Exact-Cent Split Math</span>
-              </span>
-            </li>
-            <li>
-              <span class="footer-feature-item">
-                <span class="footer-feature-dot"></span>
-                <span>Equal & Weighted Shares</span>
-              </span>
-            </li>
-            <li>
-              <span class="footer-feature-item">
-                <span class="footer-feature-dot"></span>
-                <span>Minimum Settlement Graph</span>
-              </span>
-            </li>
-            <li>
-              <span class="footer-feature-item">
-                <span class="footer-feature-dot"></span>
-                <span>1-Tap WhatsApp Slips</span>
-              </span>
-            </li>
-            <li>
-              <span class="footer-feature-item">
-                <span class="footer-feature-dot"></span>
-                <span>Complete Activity Audit Log</span>
-              </span>
-            </li>
-          </ul>
-        </div>
-
-        <!-- Workspaces & Quick Actions Column -->
-        <div class="footer-col">
-          <h4 class="footer-col-title">Workspaces</h4>
-          <ul class="footer-actions-list">
-            <li>
-              <button type="button" class="footer-action-link" (click)="openPresetModal()">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                  <polyline points="17 21 17 13 7 13 7 21"/>
-                  <polyline points="7 3 7 8 15 8"/>
-                </svg>
-                <span>Presets & Templates</span>
-                <svg class="footer-arrow" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
-              </button>
-            </li>
-            <li>
-              <button type="button" class="footer-action-link" (click)="openHouseholdModal()">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
-                  <circle cx="12" cy="10" r="3"/>
-                </svg>
-                <span>Household Settings</span>
-                <svg class="footer-arrow" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
-              </button>
-            </li>
-            @if (!splitService.cloudSync.currentUser()) {
-              <li>
-                <button type="button" class="footer-action-link" (click)="signInWithGoogleAction()">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
-                    <path d="M2 12h20"/>
-                  </svg>
-                  <span>Google Cloud Sync</span>
-                  <svg class="footer-arrow" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
-                </button>
-              </li>
-            } @else {
-              <li>
-                <div class="footer-sync-active">
-                  <span class="active-dot"></span>
-                  <span class="sync-user-label">Synced: {{ splitService.cloudSync.currentUser()?.displayName || splitService.cloudSync.currentUser()?.email }}</span>
-                </div>
-              </li>
-            }
-          </ul>
-        </div>
-
-        <!-- Creator & Community Column -->
-        <div class="footer-col">
-          <h4 class="footer-col-title">Creator</h4>
-          <p class="footer-creator-subtext">
-            Crafted with precision by <strong>Dinesh Murugan</strong>. Free utility for shared spaces.
-          </p>
-          <div class="footer-chai-wrapper">
-            <a
-              href="https://buymeachai.ezee.li/Dinesh_Murugan"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="footer-chai-btn-premium"
-              title="Buy Dinesh Murugan P a Chai"
-            >
-              <div class="chai-btn-content">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M17 8h1a4 4 0 1 1 0 8h-1"/>
-                  <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/>
-                  <line x1="6" y1="2" x2="6" y2="4"/>
-                  <line x1="10" y1="2" x2="10" y2="4"/>
-                  <line x1="14" y1="2" x2="14" y2="4"/>
-                </svg>
-                <span>Buy a Chai</span>
-              </div>
-              <svg class="chai-btn-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
-            </a>
-          </div>
-          <div class="footer-status-indicator">
-            <span class="health-pulse"></span>
-            <span>All calculations verified locally</span>
-          </div>
+            <span>Presets</span>
+          </button>
+          <button type="button" class="footer-btn" (click)="openHouseholdModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+            <span>Household</span>
+          </button>
+          @if (!splitService.cloudSync.currentUser()) {
+            <button type="button" class="footer-btn" (click)="signInWithGoogleAction()">
+              <svg width="14" height="14" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+              </svg>
+              <span>Sign in with Google</span>
+            </button>
+          } @else {
+            <button type="button" class="footer-btn footer-btn-danger" (click)="signOutAccountAction()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              <span>Sign out</span>
+            </button>
+          }
         </div>
       </div>
 
-      <!-- Bottom Subfooter Bar -->
-      <div class="footer-bottom-bar">
-        <div class="footer-bottom-left">
-          <span>© 2026 SplitMate. Built for harmonious shared living.</span>
-        </div>
-        <div class="footer-bottom-right">
-          <span class="footer-version-tag">v2.4</span>
-          <span class="footer-divider">•</span>
-          <span>Single Dark Palette</span>
-          <span class="footer-divider">•</span>
-          <span>Independent Utility</span>
-        </div>
+      <div class="footer-bottom">
+        <span class="footer-copy">© 2026 SplitMate. All rights reserved.</span>
+        <span class="footer-meta">v2.4</span>
       </div>
     </div>
   </footer>
@@ -1366,47 +1371,18 @@
                   <h4 style="margin: 0;">Your Saved Flat Presets</h4>
                   <p class="section-hint" style="margin: 0.2rem 0 0 0;">Load a template to instantly apply roommates and recurring bills.</p>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                  <!-- Preset Filter Pills -->
-                  <div class="preset-filter-pills">
-                    <button
-                      type="button"
-                      class="filter-pill-btn"
-                      [class.active]="presetFilterType() === 'all'"
-                      (click)="presetFilterType.set('all')"
-                    >
-                      All ({{ splitService.customPresets().length }})
-                    </button>
-                    <button
-                      type="button"
-                      class="filter-pill-btn"
-                      [class.active]="presetFilterType() === 'local'"
-                      (click)="presetFilterType.set('local')"
-                    >
-                      💾 Local
-                    </button>
-                    <button
-                      type="button"
-                      class="filter-pill-btn"
-                      [class.active]="presetFilterType() === 'cloud'"
-                      (click)="presetFilterType.set('cloud')"
-                    >
-                      ☁️ Cloud
-                    </button>
-                  </div>
-                  <button class="btn btn-sm btn-outline" (click)="setPresetModalTab('create')">
-                    + Create New
-                  </button>
-                </div>
+                <button class="btn btn-sm btn-primary" (click)="setPresetModalTab('create')">
+                  + Create New Preset
+                </button>
               </div>
 
               @if (filteredPresets().length === 0) {
                 <div class="empty-state-card glass-panel" style="padding: 1.5rem; text-align: center; margin-bottom: 1.5rem; border-radius: var(--radius-lg);">
                   <p style="margin: 0; font-weight: 500;">
-                    {{ splitService.customPresets().length === 0 ? "You haven't saved any presets yet." : "No presets matching selected filter." }}
+                    You haven't saved any presets yet.
                   </p>
                   <p class="text-sm text-muted" style="margin-top: 0.35rem; margin-bottom: 0.75rem;">
-                    Save your active flat roommates and bills as a Local or Cloud preset for easy 1-click loading!
+                    Save your active roommates and expenses as a reusable preset for quick 1-click loading.
                   </p>
                   <button class="btn btn-primary btn-sm" (click)="setPresetModalTab('create')">
                     Save Current Setup as Preset
@@ -1419,15 +1395,6 @@
                       <div class="preset-item-info">
                         <div class="preset-item-title-row" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                           <strong style="font-size: 1rem;">{{ cp.name }}</strong>
-                          @if (cp.storageType === 'cloud') {
-                            <span class="badge badge-cloud" title="Saved to your Google Account">
-                              ☁️ Cloud
-                            </span>
-                          } @else {
-                            <span class="badge badge-local" title="Saved locally on this device">
-                              💾 Local
-                            </span>
-                          }
                           <span class="badge badge-subtle">Saved on {{ cp.createdAt }}</span>
                         </div>
                         @if (cp.description) {
@@ -1466,7 +1433,7 @@
                   <span class="badge badge-warning">Clean Slate</span>
                 </div>
                 <p class="preset-option-desc">
-                  Clears active roommates and expenses to start completely fresh. (Your saved presets will remain safely preserved!)
+                  Clears active roommates and expenses to start completely fresh. (Your saved presets will remain safely preserved.)
                 </p>
               </div>
             </div>
@@ -1491,63 +1458,6 @@
                   [ngModel]="newPresetDescription()"
                   (ngModelChange)="newPresetDescription.set($event)"
                 />
-              </div>
-
-              <!-- WHERE TO SAVE THIS PRESET: LOCAL VS CLOUD -->
-              <div class="preset-storage-choice-section" style="margin-top: 1.25rem;">
-                <label style="display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem;">
-                  Where do you want to save this preset? *
-                </label>
-                <div class="preset-choice-grid">
-                  <!-- Local Storage Option -->
-                  <div
-                    class="preset-choice-card"
-                    [class.selected]="newPresetStorageType() === 'local'"
-                    (click)="setPresetStorageChoice('local')"
-                  >
-                    <div class="choice-card-radio">
-                      <span class="custom-radio-circle" [class.checked]="newPresetStorageType() === 'local'"></span>
-                    </div>
-                    <div class="choice-card-content">
-                      <div class="choice-title-row">
-                        <span class="choice-icon">💾</span>
-                        <strong>Save on this Device (Local)</strong>
-                      </div>
-                      <p class="choice-desc">Saved in this browser only. Instant and available offline.</p>
-                    </div>
-                  </div>
-
-                  <!-- Cloud (Google Account) Option -->
-                  <div
-                    class="preset-choice-card"
-                    [class.selected]="newPresetStorageType() === 'cloud'"
-                    (click)="setPresetStorageChoice('cloud')"
-                  >
-                    <div class="choice-card-radio">
-                      <span class="custom-radio-circle" [class.checked]="newPresetStorageType() === 'cloud'"></span>
-                    </div>
-                    <div class="choice-card-content">
-                      <div class="choice-title-row">
-                        <span class="choice-icon">☁️</span>
-                        <strong>Save to Cloud (Google Account)</strong>
-                      </div>
-                      <p class="choice-desc">
-                        Synced to your Google account. Access your preset from any phone or laptop.
-                      </p>
-                      @if (!splitService.cloudSync.currentUser()) {
-                        <div class="cloud-signin-hint-pill" (click)="$event.stopPropagation(); signInWithGoogleAction()">
-                          <svg width="12" height="12" viewBox="0 0 24 24">
-                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                          </svg>
-                          <span>Sign in with Google to enable Cloud</span>
-                        </div>
-                      }
-                    </div>
-                  </div>
-                </div>
               </div>
 
               <!-- Snapshot details -->
@@ -1587,63 +1497,11 @@
           @if (presetModalTab() === 'create') {
             <button class="btn btn-subtle" (click)="setPresetModalTab('list')">Back to Presets</button>
             <button class="btn btn-primary" (click)="saveNewPresetAction()">
-              Save as {{ newPresetStorageType() === 'cloud' ? 'Cloud' : 'Local' }} Preset
+              Save Preset
             </button>
           } @else {
             <button class="btn btn-subtle" (click)="closePresetModal()">Close</button>
           }
-        </div>
-      </div>
-    </div>
-  }
-
-  <!-- 1-TIME FIREBASE SETUP MODAL (Only shown if Firebase credentials are needed) -->
-  @if (showFirebaseSetupModal()) {
-    <div class="modal-backdrop" (click)="closeFirebaseSetupModal()">
-      <div class="modal-dialog glass-panel" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <div>
-            <h3>Connect Firebase (1-Time Setup)</h3>
-            <p class="section-hint" style="margin: 0.2rem 0 0 0;">Enter your free Firebase credentials to enable Google Sign-In & Cloud Presets.</p>
-          </div>
-          <button class="btn-close" (click)="closeFirebaseSetupModal()" title="Close" aria-label="Close">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        </div>
-
-        @if (firebaseSetupError()) {
-          <div class="notice-banner danger" style="margin: 0.75rem 1.25rem 0; padding: 0.65rem 0.95rem; border-radius: var(--radius-sm); font-size: 0.85rem; color: #dc2626; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25);">
-            {{ firebaseSetupError() }}
-          </div>
-        }
-
-        <div class="modal-body">
-          <div class="form-group">
-            <label>Firebase API Key *</label>
-            <input
-              type="text"
-              placeholder="e.g. AIzaSy..."
-              [ngModel]="firebaseApiKeyInput()"
-              (ngModelChange)="firebaseApiKeyInput.set($event)"
-            />
-          </div>
-
-          <div class="form-group">
-            <label>Project ID *</label>
-            <input
-              type="text"
-              placeholder="e.g. splitmate-cloud"
-              [ngModel]="firebaseProjectIdInput()"
-              (ngModelChange)="firebaseProjectIdInput.set($event)"
-            />
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button class="btn btn-subtle" (click)="closeFirebaseSetupModal()">Cancel</button>
-          <button class="btn btn-primary" (click)="saveFirebaseSetupAction()">Connect & Sign In</button>
         </div>
       </div>
     </div>
@@ -2256,29 +2114,6 @@
               [ngModel]="householdNameInput()"
               (ngModelChange)="householdNameInput.set($event)"
             />
-          </div>
-
-          <div class="creator-support-card">
-            <div class="creator-support-text">
-              <span class="support-title">Love using SplitMate?</span>
-              <span class="support-sub">Support creator to help keep it ad-free & updated!</span>
-            </div>
-            <a
-              href="https://buymeachai.ezee.li/Dinesh_Murugan"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="btn-chai-header"
-              title="Buy Dinesh Murugan P a Chai - Support Creator"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M17 8h1a4 4 0 1 1 0 8h-1"/>
-                <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/>
-                <line x1="6" y1="2" x2="6" y2="4"/>
-                <line x1="10" y1="2" x2="10" y2="4"/>
-                <line x1="14" y1="2" x2="14" y2="4"/>
-              </svg>
-              <span>Buy a Chai</span>
-            </a>
           </div>
         </div>
 

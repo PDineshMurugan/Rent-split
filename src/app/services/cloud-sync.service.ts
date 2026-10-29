@@ -97,6 +97,15 @@ export class CloudSyncService {
 
   private initFirebase(config: FirebaseConfig): boolean {
     try {
+      // When hosted on Netlify, use same-domain authDomain so requests to /__/auth/*
+      // are first-party and proxied cleanly to Firebase (bypassing third-party cookie/tracking blocks)
+      if (typeof window !== 'undefined' && window.location.hostname.endsWith('netlify.app')) {
+        config = {
+          ...config,
+          authDomain: window.location.hostname,
+        };
+      }
+
       if (getApps().length === 0) {
         this.app = initializeApp(config);
       } else {
@@ -135,9 +144,7 @@ export class CloudSyncService {
               });
             }
           })
-          .catch((e) => {
-            console.warn('Firebase getRedirectResult error:', e);
-          });
+          .catch(() => {});
       }
 
       // Initialize Analytics if supported in browser environment
@@ -248,35 +255,43 @@ export class CloudSyncService {
       this.isAuthLoading.set(false);
       return true;
     } catch (err: any) {
-      this.isAuthLoading.set(false);
       console.warn('Google sign-in error:', err);
-      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/popup-blocked') {
-        const wantsRedirect =
-          typeof window !== 'undefined' &&
-          window.confirm(
-            'Google Sign-In popup was closed or blocked by browser privacy controls.\n\n' +
-              'In Microsoft Edge or Safari, Tracking Prevention frequently blocks cross-origin popup storage.\n\n' +
-              'Click OK to sign in via full-page redirect instead.'
-          );
 
-        if (wantsRedirect && this.auth) {
-          const provider = new GoogleAuthProvider();
-          provider.setCustomParameters({ prompt: 'select_account' });
-          await signInWithRedirect(this.auth, provider);
-          return false;
+      const isLocalhost =
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+        this.isAuthLoading.set(false);
+        this.syncError.set('Sign-in cancelled.');
+        return false;
+      }
+
+      // If popup was blocked by browser
+      if (err.code === 'auth/popup-blocked') {
+        if (!isLocalhost && this.auth) {
+          try {
+            const provider = new GoogleAuthProvider();
+            provider.setCustomParameters({ prompt: 'select_account' });
+            await signInWithRedirect(this.auth, provider);
+            return false;
+          } catch (redirectErr: any) {
+            this.isAuthLoading.set(false);
+            this.syncError.set(redirectErr.message || 'Sign-in failed.');
+            return false;
+          }
         }
 
-        this.syncError.set(
-          'Sign-in was not completed. In Microsoft Edge, click the lock/shield icon on the left of your address bar and turn "Tracking prevention for this site" OFF, then try again.'
-        );
-      } else if (err.code === 'auth/unauthorized-domain') {
-        this.syncError.set(
-          'Unauthorized Domain: Please add "rentspliter.netlify.app" to Firebase Console -> Authentication -> Settings -> Authorized Domains.'
-        );
-      } else if (err.code === 'auth/cancelled-popup-request') {
-        this.syncError.set('Sign-in was cancelled.');
+        this.isAuthLoading.set(false);
+        this.syncError.set('Pop-up was blocked. Please allow pop-ups for localhost in your browser address bar.');
+        return false;
+      }
+
+      this.isAuthLoading.set(false);
+      if (err.code === 'auth/unauthorized-domain') {
+        this.syncError.set('Domain is not authorized in Firebase Console.');
       } else if (err.code === 'auth/operation-not-allowed') {
-        this.syncError.set('Google Sign-In is not enabled yet in your Firebase Console (Authentication -> Sign-in method).');
+        this.syncError.set('Google Sign-In is not enabled in Firebase Console.');
       } else {
         this.syncError.set(err.message || 'Google Sign-In failed.');
       }
