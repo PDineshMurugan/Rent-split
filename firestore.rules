@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Shared roommate household collection (matched by sync code)
+    match /households/{householdId} {
+      allow read, write: if true;
+    }
+    
+    // Authenticated user private presets and backups
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

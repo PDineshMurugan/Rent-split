@@ -123,4 +123,5 @@ export interface CustomPreset {
   totalExpenseAmount: number;
   members: Member[];
   expenses: Expense[];
+  storageType?: 'local' | 'cloud';
 }

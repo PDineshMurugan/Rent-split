@@ -1,0 +1,16 @@
+{
+  "name": "SplitMate — Roommate Rent & Expense Sharing",
+  "short_name": "SplitMate",
+  "description": "Fair roommate rent & shared household expense split with zero tally errors and WhatsApp sharing.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#c4391a",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

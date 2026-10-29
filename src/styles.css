@@ -1,93 +1,99 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #c4391a;
+  --color-primary-hover: #d94420;
+  --color-primary-active: #ab3216;
+  --color-background: #0e0c0b;
+  --color-card: #181412;
+  --color-card-subtle: #211b18;
+  --color-surface: #15110f;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-muted: #736961;
+  --color-foreground: #f5f2ee;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
 :root {
   --font-main: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
 
-  /* Color Palette - Light Mode */
-  --bg-app: #f8fafc;
-  --bg-card: #ffffff;
-  --bg-card-subtle: #f1f5f9;
-  --bg-surface: #ffffff;
-  --border-subtle: #e2e8f0;
-  --border-focus: #6366f1;
+  /* Magnitudle-Inspired Warm Obsidian Dark Palette (Permanent Single Dark Theme) */
+  --bg-app: #0e0c0b;
+  --bg-card: #181412;
+  --bg-card-subtle: #211b18;
+  --bg-surface: #15110f;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-focus: #c4391a;
+  --border-primary: rgba(196, 57, 26, 0.35);
 
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
-  --text-inverse: #ffffff;
+  --text-primary: #f5f2ee;
+  --text-secondary: #a99f97;
+  --text-muted: #736961;
+  --text-inverse: #0e0c0b;
 
-  --brand-50: #eef2ff;
-  --brand-100: #e0e7ff;
-  --brand-500: #6366f1;
-  --brand-600: #4f46e5;
-  --brand-700: #4338ca;
+  /* Magnitudle Terracotta / Warm Vermilion Primary */
+  --brand-50: rgba(196, 57, 26, 0.12);
+  --brand-100: rgba(196, 57, 26, 0.22);
+  --brand-500: #c4391a;
+  --brand-600: #b13115;
+  --brand-700: #93260e;
+  --accent-primary: #c4391a;
+  --accent-primary-hover: #d94420;
+  --accent-warm: #e05333;
 
-  --success-50: #ecfdf5;
-  --success-100: #d1fae5;
-  --success-500: #10b981;
-  --success-600: #059669;
-  --success-700: #047857;
+  --success-50: rgba(46, 184, 122, 0.12);
+  --success-100: rgba(46, 184, 122, 0.22);
+  --success-500: #2eb87a;
+  --success-600: #259e67;
+  --success-700: #1b7a4e;
 
-  --warning-50: #fffbeb;
-  --warning-100: #fef3c7;
-  --warning-500: #f59e0b;
-  --warning-600: #d97706;
+  --warning-50: rgba(229, 155, 44, 0.12);
+  --warning-100: rgba(229, 155, 44, 0.22);
+  --warning-500: #e59b2c;
+  --warning-600: #c9821d;
 
-  --danger-50: #fef2f2;
-  --danger-100: #fee2e2;
-  --danger-500: #ef4444;
-  --danger-600: #dc2626;
+  --danger-50: rgba(224, 72, 56, 0.12);
+  --danger-100: rgba(224, 72, 56, 0.22);
+  --danger-500: #e04838;
+  --danger-600: #c6392b;
 
-  --accent-purple: #8b5cf6;
-  --accent-cyan: #06b6d4;
+  --accent-purple: #c4391a;
+  --accent-cyan: #e59b2c;
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.06);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.65);
+  --shadow-xl: 0 24px 60px rgba(0, 0, 0, 0.75);
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
   --radius-xl: 24px;
   --radius-full: 9999px;
 }
 
-html.dark {
-  --bg-app: #090d16;
-  --bg-card: #131b2e;
-  --bg-card-subtle: #1e293b;
-  --bg-surface: #19233c;
-  --border-subtle: #263352;
-  --border-focus: #818cf8;
+html, html.dark {
+  --bg-app: #0e0c0b;
+  --bg-card: #181412;
+  --bg-card-subtle: #211b18;
+  --bg-surface: #15110f;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-focus: #c4391a;
 
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --text-inverse: #090d16;
+  --text-primary: #f5f2ee;
+  --text-secondary: #a99f97;
+  --text-muted: #736961;
+  --text-inverse: #0e0c0b;
 
-  --brand-50: #1e1b4b;
-  --brand-100: #312e81;
-  --brand-500: #818cf8;
-  --brand-600: #6366f1;
-  --brand-700: #4f46e5;
+  --brand-50: rgba(196, 57, 26, 0.12);
+  --brand-100: rgba(196, 57, 26, 0.22);
+  --brand-500: #c4391a;
+  --brand-600: #b13115;
+  --brand-700: #93260e;
 
-  --success-50: #062a1e;
-  --success-100: #064e3b;
-  --success-500: #34d399;
-  --success-600: #10b981;
-
-  --warning-50: #2d1a04;
-  --warning-100: #78350f;
-  --warning-500: #fbbf24;
-
-  --danger-50: #2f0d0e;
-  --danger-100: #7f1d1d;
-  --danger-500: #f87171;
-
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.6);
+  color-scheme: dark;
 }
 
 *, *::before, *::after {
@@ -99,23 +105,32 @@ html.dark {
 body {
   font-family: var(--font-main);
   background-color: var(--bg-app);
+  background-image: 
+    radial-gradient(54rem 30rem at 50% -8%, rgba(196, 57, 26, 0.15), transparent 72%),
+    radial-gradient(34rem 20rem at 90% 18%, rgba(120, 78, 53, 0.12), transparent 78%);
+  background-attachment: fixed;
   color: var(--text-primary);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
 }
 
-/* Glassmorphism helpers */
+/* Magnitudle-Style Matte Card / Glass Panel */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(24, 20, 18, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-subtle);
 }
 
-html.dark .glass-panel {
-  background: rgba(19, 27, 46, 0.85);
-  border: 1px solid var(--border-subtle);
+/* Magnitudle Monospace Micro-Label helper */
+.tag-mono, .mono-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--brand-500);
 }
 
 /* Common interactive elements */
@@ -142,7 +157,7 @@ input, select, textarea {
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--brand-500);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 0 0 3px rgba(196, 57, 26, 0.25);
 }
 
 /* Custom Scrollbars */
@@ -154,11 +169,11 @@ input:focus, select:focus, textarea:focus {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-subtle);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: rgba(196, 57, 26, 0.4);
 }
 
 /* Animations */

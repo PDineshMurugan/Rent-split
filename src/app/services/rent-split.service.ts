@@ -1,4 +1,4 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, signal, inject, effect } from '@angular/core';
 import {
   Member,
   Expense,
@@ -12,6 +12,8 @@ import {
   LineItemExplanation,
   CustomPreset,
 } from '../models/expense.model';
+import { CloudSyncService } from './cloud-sync.service';
+import { HouseholdCloudData } from '../models/cloud.model';
 
 const STORAGE_KEY = 'splitmate_data_v4';
 const PRESETS_STORAGE_KEY = 'splitmate_custom_presets_v1';
@@ -48,10 +50,100 @@ export class RentSplitService {
   readonly payments = signal<PaymentRecord[]>([]);
   readonly auditLogs = signal<AuditLog[]>([]);
   readonly customPresets = signal<CustomPreset[]>([]);
-  readonly isDarkMode = signal<boolean>(false);
+  readonly isDarkMode = signal<boolean>(true);
+  readonly cloudSync = inject(CloudSyncService);
+
+  private autoSyncTimer: any = null;
 
   constructor() {
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.add('dark');
+    }
     this.cleanLegacyStorageAndLoad();
+    this.initCloudAutoListener();
+
+    // Auto-sync cloud presets when Google account signs in
+    effect(() => {
+      const user = this.cloudSync.currentUser();
+      if (user) {
+        this.syncCloudPresetsOnLogin();
+      }
+    });
+  }
+
+  // Sync presets stored in user's Google Cloud account
+  async syncCloudPresetsOnLogin() {
+    try {
+      const cloudPresets = await this.cloudSync.fetchCloudPresets();
+      if (cloudPresets && cloudPresets.length > 0) {
+        this.customPresets.update((localList) => {
+          const cloudIds = new Set(cloudPresets.map((p) => p.id));
+          const keptLocals = localList.filter((p) => !cloudIds.has(p.id));
+          return [...cloudPresets, ...keptLocals];
+        });
+        this.savePresetsToStorage(false);
+        this.addAudit(
+          'Cloud Presets Synced',
+          `Synced ${cloudPresets.length} cloud presets from Google Account`
+        );
+      }
+    } catch (e) {
+      console.warn('Failed to sync cloud presets on login:', e);
+    }
+  }
+
+  // Generate full cloud payload preserving all history and presets
+  getCloudDataPayload(): HouseholdCloudData {
+    const user = this.cloudSync.currentUser();
+    return {
+      householdId: this.cloudSync.householdSyncCode() || (user?.uid ? `USER-${user.uid.slice(0, 8)}` : 'HOUSEHOLD'),
+      householdName: this.householdName(),
+      updatedAt: new Date().toISOString(),
+      ownerUid: user?.uid || null,
+      ownerEmail: user?.email || null,
+      currentMonthKey: this.currentMonthKey(),
+      members: this.members(),
+      months: this.months(),
+      expenses: this.expenses(),
+      payments: this.payments(),
+      auditLogs: this.auditLogs(),
+      customPresets: this.customPresets(),
+    };
+  }
+
+  // Restore entire cloud payload (months, presets, expenses, payments)
+  loadCloudDataPayload(payload: HouseholdCloudData) {
+    if (payload.householdName) this.householdName.set(payload.householdName);
+    if (payload.currentMonthKey) this.currentMonthKey.set(payload.currentMonthKey);
+    if (payload.members) this.members.set(payload.members);
+    if (payload.months && payload.months.length > 0) this.months.set(payload.months);
+    if (payload.expenses) this.expenses.set(payload.expenses);
+    if (payload.payments) this.payments.set(payload.payments);
+    if (payload.auditLogs) this.auditLogs.set(payload.auditLogs);
+    if (payload.customPresets) this.customPresets.set(payload.customPresets);
+
+    this.saveToStorage(false);
+    this.savePresetsToStorage(false);
+    this.addAudit('Cloud Sync', 'Restored household rent history & presets from Cloud');
+  }
+
+  private initCloudAutoListener() {
+    if (typeof window !== 'undefined' && this.cloudSync.syncStatus() === 'connected') {
+      this.cloudSync.subscribeRealtimeUpdates((cloudData) => {
+        if (cloudData) {
+          this.loadCloudDataPayload(cloudData);
+        }
+      });
+    }
+  }
+
+  private triggerCloudAutoSync() {
+    if (this.cloudSync.syncStatus() === 'connected' && this.cloudSync.isAutoSync()) {
+      if (this.autoSyncTimer) clearTimeout(this.autoSyncTimer);
+      this.autoSyncTimer = setTimeout(() => {
+        this.cloudSync.pushDataToCloud(this.getCloudDataPayload());
+      }, 1500);
+    }
   }
 
   // Active Month Record
@@ -396,12 +488,13 @@ export class RentSplitService {
     this.saveToStorage();
   }
 
-  createPreset(
+  async createPreset(
     name: string,
     description: string = '',
     includeMembers: boolean = true,
-    includeExpenses: boolean = true
-  ): CustomPreset {
+    includeExpenses: boolean = true,
+    storageType: 'local' | 'cloud' = 'local'
+  ): Promise<CustomPreset> {
     const membersToSave = includeMembers ? JSON.parse(JSON.stringify(this.members())) : [];
     const expensesToSave = includeExpenses ? JSON.parse(JSON.stringify(this.expenses())) : [];
     const totalExp = expensesToSave.reduce((sum: number, e: Expense) => sum + e.amount, 0);
@@ -424,14 +517,24 @@ export class RentSplitService {
       totalExpenseAmount: totalExp,
       members: membersToSave,
       expenses: expensesToSave,
+      storageType: storageType,
     };
 
-    this.customPresets.update((list) => [newPreset, ...list]);
-    this.savePresetsToStorage();
-    this.addAudit(
-      'Preset Created',
-      `Saved preset "${newPreset.name}" with ${membersToSave.length} roommates and ${expensesToSave.length} expenses`
-    );
+    this.customPresets.update((list) => [newPreset, ...list.filter((p) => p.id !== newPreset.id)]);
+    this.savePresetsToStorage(false);
+
+    if (storageType === 'cloud') {
+      await this.cloudSync.saveCloudPreset(newPreset);
+      this.addAudit(
+        'Preset Created (Cloud)',
+        `Saved cloud preset "${newPreset.name}" to Google Account`
+      );
+    } else {
+      this.addAudit(
+        'Preset Created (Local)',
+        `Saved preset "${newPreset.name}" on this device`
+      );
+    }
     return newPreset;
   }
 
@@ -461,18 +564,27 @@ export class RentSplitService {
     this.saveToStorage();
   }
 
-  deleteCustomPreset(presetId: string) {
+  async deleteCustomPreset(presetId: string) {
     const preset = this.customPresets().find((p) => p.id === presetId);
     if (!preset) return;
     this.customPresets.update((list) => list.filter((p) => p.id !== presetId));
-    this.savePresetsToStorage();
-    this.addAudit('Preset Deleted', `Removed preset "${preset.name}"`);
+    this.savePresetsToStorage(false);
+
+    if (preset.storageType === 'cloud') {
+      await this.cloudSync.deleteCloudPreset(presetId);
+      this.addAudit('Cloud Preset Deleted', `Removed cloud preset "${preset.name}" from Google Account`);
+    } else {
+      this.addAudit('Preset Deleted', `Removed local preset "${preset.name}"`);
+    }
   }
 
-  savePresetsToStorage() {
+  savePresetsToStorage(syncCloud: boolean = true) {
     try {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(this.customPresets()));
+      }
+      if (syncCloud) {
+        this.triggerCloudAutoSync();
       }
     } catch (e) {
       console.warn('Presets save error:', e);
@@ -628,7 +740,7 @@ export class RentSplitService {
     this.auditLogs.update((list) => [newLog, ...list.slice(0, 49)]);
   }
 
-  private saveToStorage() {
+  private saveToStorage(syncCloud: boolean = true) {
     try {
       if (typeof localStorage !== 'undefined') {
         const payload = {
@@ -641,6 +753,9 @@ export class RentSplitService {
           auditLogs: this.auditLogs(),
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      }
+      if (syncCloud) {
+        this.triggerCloudAutoSync();
       }
     } catch (e) {
       console.warn('Storage save error:', e);
