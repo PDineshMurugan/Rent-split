@@ -194,3 +194,26 @@ input:focus, select:focus, textarea:focus {
 .animate-pulse-glow {
   animation: pulseGlow 2s infinite ease-in-out;
 }
+
+/* Hide Netlify Injected Badge & Drawer */
+iframe[src*="netlify"],
+iframe[id*="netlify"],
+div[id*="netlify"],
+div[class*="netlify"],
+[data-netlify-badge],
+[data-netlify-drawer],
+#netlify-drawer,
+.netlify-badge {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  z-index: -99999 !important;
+  width: 0 !important;
+  height: 0 !important;
+  max-width: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+}
+

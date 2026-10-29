@@ -26,8 +26,44 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+      iframe[src*="netlify"],
+      iframe[id*="netlify"],
+      div[id*="netlify"],
+      div[class*="netlify"],
+      [data-netlify-badge],
+      [data-netlify-drawer],
+      #netlify-drawer,
+      .netlify-badge {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        position: absolute !important;
+        z-index: -99999 !important;
+      }
+    </style>
   </head>
   <body>
     <app-root></app-root>
+    <script>
+      (function() {
+        function removeNetlifyElements() {
+          var els = document.querySelectorAll('iframe[src*="netlify"], iframe[id*="netlify"], div[id*="netlify-drawer"], [data-netlify-badge], [data-netlify-drawer], #netlify-drawer, .netlify-badge');
+          for (var i = 0; i < els.length; i++) {
+            els[i].remove();
+          }
+        }
+        if (typeof window !== 'undefined') {
+          window.addEventListener('DOMContentLoaded', removeNetlifyElements);
+          window.addEventListener('load', removeNetlifyElements);
+          if (window.MutationObserver) {
+            new MutationObserver(removeNetlifyElements).observe(document.documentElement, { childList: true, subtree: true });
+          }
+        }
+      })();
+    </script>
   </body>
 </html>
