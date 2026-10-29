@@ -944,6 +944,11 @@ export class App {
     const success = await this.splitService.cloudSync.signInWithGoogle();
     if (success) {
       await this.splitService.syncCloudPresetsOnLogin();
+    } else {
+      const err = this.splitService.cloudSync.syncError();
+      if (err && err !== 'Sign-in was cancelled.') {
+        alert(err);
+      }
     }
   }
 

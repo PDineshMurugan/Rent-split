@@ -14,6 +14,8 @@ import {
   Auth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   onAuthStateChanged,
   User,
@@ -119,6 +121,24 @@ export class CloudSyncService {
           this.currentUser.set(null);
         }
       });
+
+      // Check for redirect result if returned from redirect flow
+      if (typeof window !== 'undefined' && this.auth) {
+        getRedirectResult(this.auth)
+          .then((result) => {
+            if (result?.user) {
+              this.currentUser.set({
+                uid: result.user.uid,
+                displayName: result.user.displayName || 'Roommate',
+                email: result.user.email,
+                photoURL: result.user.photoURL,
+              });
+            }
+          })
+          .catch((e) => {
+            console.warn('Firebase getRedirectResult error:', e);
+          });
+      }
 
       // Initialize Analytics if supported in browser environment
       if (typeof window !== 'undefined' && config.measurementId) {
@@ -231,11 +251,21 @@ export class CloudSyncService {
       this.isAuthLoading.set(false);
       console.warn('Google sign-in error:', err);
       if (err.code === 'auth/popup-closed-by-user') {
-        this.syncError.set('Sign-in popup was closed before completing.');
+        this.syncError.set(
+          'Sign-in popup was closed before completing. If it closed automatically or failed to open, make sure "rentspliter.netlify.app" is added to Firebase Console -> Authentication -> Settings -> Authorized Domains.'
+        );
+      } else if (err.code === 'auth/popup-blocked') {
+        this.syncError.set(
+          'Sign-in popup was blocked by your browser. Please allow popups for this site, or check your browser tracking prevention settings.'
+        );
+      } else if (err.code === 'auth/unauthorized-domain') {
+        this.syncError.set(
+          'Unauthorized Domain: Please add "rentspliter.netlify.app" to Firebase Console -> Authentication -> Settings -> Authorized Domains.'
+        );
       } else if (err.code === 'auth/cancelled-popup-request') {
         this.syncError.set('Sign-in was cancelled.');
       } else if (err.code === 'auth/operation-not-allowed') {
-        this.syncError.set('Google Sign-In is not enabled yet in your Firebase Console (Authentication > Sign-in method).');
+        this.syncError.set('Google Sign-In is not enabled yet in your Firebase Console (Authentication -> Sign-in method).');
       } else {
         this.syncError.set(err.message || 'Google Sign-In failed.');
       }
