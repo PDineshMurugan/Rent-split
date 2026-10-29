@@ -250,13 +250,24 @@ export class CloudSyncService {
     } catch (err: any) {
       this.isAuthLoading.set(false);
       console.warn('Google sign-in error:', err);
-      if (err.code === 'auth/popup-closed-by-user') {
+      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/popup-blocked') {
+        const wantsRedirect =
+          typeof window !== 'undefined' &&
+          window.confirm(
+            'Google Sign-In popup was closed or blocked by browser privacy controls.\n\n' +
+              'In Microsoft Edge or Safari, Tracking Prevention frequently blocks cross-origin popup storage.\n\n' +
+              'Click OK to sign in via full-page redirect instead.'
+          );
+
+        if (wantsRedirect && this.auth) {
+          const provider = new GoogleAuthProvider();
+          provider.setCustomParameters({ prompt: 'select_account' });
+          await signInWithRedirect(this.auth, provider);
+          return false;
+        }
+
         this.syncError.set(
-          'Sign-in popup was closed before completing. If it closed automatically or failed to open, make sure "rentspliter.netlify.app" is added to Firebase Console -> Authentication -> Settings -> Authorized Domains.'
-        );
-      } else if (err.code === 'auth/popup-blocked') {
-        this.syncError.set(
-          'Sign-in popup was blocked by your browser. Please allow popups for this site, or check your browser tracking prevention settings.'
+          'Sign-in was not completed. In Microsoft Edge, click the lock/shield icon on the left of your address bar and turn "Tracking prevention for this site" OFF, then try again.'
         );
       } else if (err.code === 'auth/unauthorized-domain') {
         this.syncError.set(
