@@ -124,4 +124,5 @@ export interface CustomPreset {
   members: Member[];
   expenses: Expense[];
   storageType?: 'local' | 'cloud';
+  ownerEmail?: string;
 }

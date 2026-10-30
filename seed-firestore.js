@@ -132,13 +132,9 @@ const householdPayload = {
 
 async function seed() {
   try {
-    console.log('Seeding households/INDUS-ANANTYA...');
+    console.log('Seeding households/INDUS-ANANTYA for dineshmurugan518@gmail.com...');
     await setDoc(doc(db, 'households', 'INDUS-ANANTYA'), householdPayload);
-    console.log('Seeding households/INDUS...');
-    await setDoc(doc(db, 'households', 'INDUS'), { ...householdPayload, householdId: 'INDUS' });
-    console.log('Seeding households/DEFAULT...');
-    await setDoc(doc(db, 'households', 'DEFAULT'), { ...householdPayload, householdId: 'DEFAULT' });
-    console.log('✅ Successfully seeded Indus Anantya Apartments into Firestore!');
+    console.log('✅ Successfully seeded Indus Anantya Apartments into Firestore under private code INDUS-ANANTYA!');
     process.exit(0);
   } catch (err) {
     console.error('❌ Failed to seed Firestore:', err);
@@ -147,3 +143,4 @@ async function seed() {
 }
 
 seed();
+

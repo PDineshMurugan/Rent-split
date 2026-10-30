@@ -373,6 +373,7 @@ function prorateRent({ monthlyRent, totalDays = 30, daysStayed, roommateName = '
 const INDUS_ANANTYA_PRESET = {
   id: 'preset_indus_anantya',
   name: 'Indus Anantya Apartments',
+  ownerEmail: 'dineshmurugan518@gmail.com',
   description:
     '8 Roommates: Dinesh, Sadhusan, Delco, Mahi, Gangesh, Diswanth, thiru, Nasim • Rent ₹26,250, Internet ₹470 (Delco), Water ₹595 (Dinesh ₹280, Sadhusan ₹315), Washing Machine ₹664 (7 members)',
   householdName: 'Indus Anantya Apartments',

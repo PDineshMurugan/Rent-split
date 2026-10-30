@@ -29,6 +29,7 @@ export const INDUS_ANANTYA_PRESET: CustomPreset = {
   expenseCount: 4,
   totalExpenseAmount: 27979,
   storageType: 'cloud',
+  ownerEmail: 'dineshmurugan518@gmail.com',
   members: [
     { id: 'mem_dinesh', name: 'Dinesh', isActive: true, avatarColor: '#10b981' },
     { id: 'mem_sadhusan', name: 'Sadhusan', isActive: true, avatarColor: '#3b82f6' },
@@ -162,7 +163,28 @@ export class RentSplitService {
   readonly expenses = signal<Expense[]>([]);
   readonly payments = signal<PaymentRecord[]>([]);
   readonly auditLogs = signal<AuditLog[]>([]);
-  readonly customPresets = signal<CustomPreset[]>([]);
+  private readonly _internalPresets = signal<CustomPreset[]>([]);
+
+  // Computed presets visible strictly based on current user account:
+  // Indus Anantya Apartments preset is ONLY visible if logged in as dineshmurugan518@gmail.com
+  readonly customPresets = computed<CustomPreset[]>(() => {
+    const list = this._internalPresets();
+    const curEmail = (this.cloudSync.currentUser()?.email || '').trim().toLowerCase();
+
+    return list.filter((p) => {
+      const isIndus =
+        p.id === 'preset_indus_anantya' ||
+        p.name.toLowerCase().includes('indus anantya');
+
+      if (isIndus || p.ownerEmail) {
+        const targetEmail = (p.ownerEmail || 'dineshmurugan518@gmail.com').trim().toLowerCase();
+        // Visible ONLY when logged in AND email is exactly dineshmurugan518@gmail.com
+        return curEmail.length > 0 && curEmail === targetEmail;
+      }
+      return true;
+    });
+  });
+
   readonly isDarkMode = signal<boolean>(true);
   readonly cloudSync = inject(CloudSyncService);
 
@@ -180,6 +202,11 @@ export class RentSplitService {
       const user = this.cloudSync.currentUser();
       if (user) {
         this.syncCloudPresetsOnLogin();
+      } else {
+        // When logged out, remove any private presets from memory
+        this._internalPresets.update((list) =>
+          list.filter((p) => p.id !== INDUS_ANANTYA_PRESET.id && !p.name.toLowerCase().includes('indus anantya'))
+        );
       }
     });
   }
@@ -187,12 +214,38 @@ export class RentSplitService {
   // Sync presets stored in user's Google Cloud account
   async syncCloudPresetsOnLogin() {
     try {
-      const cloudPresets = await this.cloudSync.fetchCloudPresets();
-      const currentLocals = this.customPresets();
+      const user = this.cloudSync.currentUser();
+      const curEmail = (user?.email || '').trim().toLowerCase();
+      const isDinesh = curEmail === 'dineshmurugan518@gmail.com';
 
-      // Ensure Indus Anantya Apartments preset is always included in user's list
-      if (!currentLocals.some((p) => p.name === INDUS_ANANTYA_PRESET.name || p.id === INDUS_ANANTYA_PRESET.id)) {
-        currentLocals.unshift(INDUS_ANANTYA_PRESET);
+      let cloudPresets = await this.cloudSync.fetchCloudPresets();
+      let currentLocals = [...this._internalPresets()];
+
+      // If and ONLY if signed in as dineshmurugan518@gmail.com, make sure Indus Anantya Apartments is available
+      if (isDinesh) {
+        if (!cloudPresets.some((cp) => cp.id === INDUS_ANANTYA_PRESET.id || cp.name === INDUS_ANANTYA_PRESET.name)) {
+          await this.cloudSync.saveCloudPreset({
+            ...INDUS_ANANTYA_PRESET,
+            storageType: 'cloud',
+            ownerEmail: 'dineshmurugan518@gmail.com',
+          });
+          cloudPresets.unshift({
+            ...INDUS_ANANTYA_PRESET,
+            storageType: 'cloud',
+            ownerEmail: 'dineshmurugan518@gmail.com',
+          });
+        }
+        if (!currentLocals.some((p) => p.name === INDUS_ANANTYA_PRESET.name || p.id === INDUS_ANANTYA_PRESET.id)) {
+          currentLocals.unshift(INDUS_ANANTYA_PRESET);
+        }
+      } else {
+        // Any other user account: explicitly remove Indus Anantya preset
+        cloudPresets = cloudPresets.filter(
+          (p) => p.id !== INDUS_ANANTYA_PRESET.id && !p.name.toLowerCase().includes('indus anantya')
+        );
+        currentLocals = currentLocals.filter(
+          (p) => p.id !== INDUS_ANANTYA_PRESET.id && !p.name.toLowerCase().includes('indus anantya')
+        );
       }
 
       // If there are local presets not yet in Firestore, upload them
@@ -203,9 +256,8 @@ export class RentSplitService {
         }
       }
 
-      this.customPresets.set(cloudPresets);
+      this._internalPresets.set(cloudPresets);
       this.savePresetsToStorage(false);
-      const user = this.cloudSync.currentUser();
       if (cloudPresets.length > 0) {
         this.addAudit(
           'Presets Synced',
@@ -245,7 +297,7 @@ export class RentSplitService {
     if (payload.expenses) this.expenses.set(payload.expenses);
     if (payload.payments) this.payments.set(payload.payments);
     if (payload.auditLogs) this.auditLogs.set(payload.auditLogs);
-    if (payload.customPresets) this.customPresets.set(payload.customPresets);
+    if (payload.customPresets) this._internalPresets.set(payload.customPresets);
 
     this.saveToStorage(false);
     this.savePresetsToStorage(false);
@@ -646,7 +698,7 @@ export class RentSplitService {
       storageType: isCloud ? 'cloud' : 'local',
     };
 
-    this.customPresets.update((list) => [newPreset, ...list.filter((p) => p.id !== newPreset.id)]);
+    this._internalPresets.update((list) => [newPreset, ...list.filter((p) => p.id !== newPreset.id)]);
     this.savePresetsToStorage(false);
 
     if (isCloud) {
@@ -685,7 +737,7 @@ export class RentSplitService {
   async deleteCustomPreset(presetId: string) {
     const preset = this.customPresets().find((p) => p.id === presetId);
     if (!preset) return;
-    this.customPresets.update((list) => list.filter((p) => p.id !== presetId));
+    this._internalPresets.update((list) => list.filter((p) => p.id !== presetId));
     this.savePresetsToStorage(false);
 
     if (this.cloudSync.currentUser()) {
@@ -901,13 +953,17 @@ export class RentSplitService {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
           const data = JSON.parse(raw);
-          if (data.householdName) this.householdName.set(data.householdName);
-          if (data.currentMonthKey) this.currentMonthKey.set(data.currentMonthKey);
-          if (data.members) this.members.set(data.members);
-          if (data.months) this.months.set(data.months);
-          if (data.expenses) this.expenses.set(data.expenses);
-          if (data.payments) this.payments.set(data.payments);
-          if (data.auditLogs) this.auditLogs.set(data.auditLogs);
+          // Only restore flat workspace if it is not restricted to a specific account
+          const isIndus = data.householdName === 'Indus Anantya Apartments';
+          if (!isIndus) {
+            if (data.householdName) this.householdName.set(data.householdName);
+            if (data.currentMonthKey) this.currentMonthKey.set(data.currentMonthKey);
+            if (data.members) this.members.set(data.members);
+            if (data.months) this.months.set(data.months);
+            if (data.expenses) this.expenses.set(data.expenses);
+            if (data.payments) this.payments.set(data.payments);
+            if (data.auditLogs) this.auditLogs.set(data.auditLogs);
+          }
         }
 
         const presetsRaw = localStorage.getItem(PRESETS_STORAGE_KEY);
@@ -920,25 +976,9 @@ export class RentSplitService {
           }
         }
 
-        // Always make sure Indus Anantya Apartments preset is available
-        const indusIdx = loadedPresets.findIndex(
-          (p) => p.name === INDUS_ANANTYA_PRESET.name || p.id === INDUS_ANANTYA_PRESET.id
-        );
-        if (indusIdx === -1) {
-          loadedPresets.unshift(INDUS_ANANTYA_PRESET);
-        } else {
-          loadedPresets[indusIdx] = {
-            ...INDUS_ANANTYA_PRESET,
-            storageType: loadedPresets[indusIdx].storageType || 'cloud',
-          };
-        }
-        this.customPresets.set(loadedPresets);
-        this.savePresetsToStorage(false);
-
-        // If active flat workspace is empty, load Indus Anantya Apartments by default
-        if (this.members().length === 0) {
-          this.loadCustomPreset(INDUS_ANANTYA_PRESET.id);
-        }
+        // Do not inject Indus Anantya into presets for other users.
+        // It is strictly restricted and only loaded when dineshmurugan518@gmail.com logs in.
+        this._internalPresets.set(loadedPresets);
       }
     } catch (e) {
       console.warn('Storage load error:', e);
