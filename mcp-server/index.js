@@ -12,6 +12,7 @@ const {
   minimizeSettlements,
   generateMonthlyReport,
   prorateRent,
+  INDUS_ANANTYA_PRESET,
 } = require('./split-engine');
 
 const SERVER_NAME = 'splitmate-mcp';
@@ -197,6 +198,20 @@ const TOOLS = [
       required: ['monthlyRent', 'daysStayed'],
     },
   },
+  {
+    name: 'get_presets',
+    description:
+      'Retrieves pre-configured household templates and flat presets (such as "Indus Anantya Apartments" with 8 roommates, rent, WiFi, water cans, washing machine, and direct credits).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        presetName: {
+          type: 'string',
+          description: "Optional name of preset to retrieve (e.g. 'Indus Anantya Apartments'). If omitted, returns all presets.",
+        },
+      },
+    },
+  },
 ];
 
 async function handleToolCall(name, args) {
@@ -229,6 +244,17 @@ async function handleToolCall(name, args) {
       const res = prorateRent(args || {});
       return {
         content: [{ type: 'text', text: JSON.stringify(res, null, 2) }],
+      };
+    }
+
+    case 'get_presets': {
+      const presets = [INDUS_ANANTYA_PRESET];
+      const targetName = args && args.presetName && args.presetName.toLowerCase().trim();
+      const matched = targetName
+        ? presets.filter((p) => p.name.toLowerCase().includes(targetName) || p.id.includes(targetName))
+        : presets;
+      return {
+        content: [{ type: 'text', text: JSON.stringify(matched, null, 2) }],
       };
     }
 
@@ -334,3 +360,4 @@ function main() {
 }
 
 main();
+

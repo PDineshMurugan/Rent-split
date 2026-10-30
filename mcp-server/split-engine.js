@@ -370,9 +370,55 @@ function prorateRent({ monthlyRent, totalDays = 30, daysStayed, roommateName = '
   };
 }
 
+const INDUS_ANANTYA_PRESET = {
+  id: 'preset_indus_anantya',
+  name: 'Indus Anantya Apartments',
+  description:
+    '8 Roommates: Dinesh, Sadhusan, Delco, Mahi, Gangesh, Diswanth, thiru, Nasim • Rent ₹26,250, Internet ₹470 (Delco), Water ₹595 (Dinesh ₹280, Sadhusan ₹315), Washing Machine ₹664 (7 members)',
+  householdName: 'Indus Anantya Apartments',
+  roommateCount: 8,
+  roommates: ['Dinesh', 'Sadhusan', 'Delco', 'Mahi', 'Gangesh', 'Diswanth', 'thiru', 'Nasim'],
+  expenses: [
+    {
+      title: 'Rent',
+      category: 'Rent',
+      amount: 26250,
+      participants: ['Dinesh', 'Sadhusan', 'Delco', 'Mahi', 'Gangesh', 'Diswanth', 'thiru', 'Nasim'],
+      splitType: 'equal',
+    },
+    {
+      title: 'Internet',
+      category: 'Internet',
+      amount: 470,
+      participants: ['Dinesh', 'Sadhusan', 'Delco', 'Mahi', 'Gangesh', 'Diswanth', 'thiru', 'Nasim'],
+      splitType: 'equal',
+      payers: [{ roommate: 'Delco', amount: 470 }],
+    },
+    {
+      title: 'Water (17 Cans)',
+      category: 'Water Cans',
+      amount: 595,
+      participants: ['Dinesh', 'Sadhusan', 'Delco', 'Mahi', 'Gangesh', 'Diswanth', 'thiru', 'Nasim'],
+      splitType: 'equal',
+      payers: [
+        { roommate: 'Dinesh', amount: 280 },
+        { roommate: 'Sadhusan', amount: 315 },
+      ],
+    },
+    {
+      title: 'Washing Machine',
+      category: 'Washing Machine',
+      amount: 664,
+      participants: ['Dinesh', 'Sadhusan', 'Delco', 'Mahi', 'Gangesh', 'Diswanth', 'thiru'],
+      splitType: 'equal',
+    },
+  ],
+};
+
 module.exports = {
   splitExpense,
   minimizeSettlements,
   generateMonthlyReport,
   prorateRent,
+  INDUS_ANANTYA_PRESET,
 };
