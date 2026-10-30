@@ -638,17 +638,28 @@ export class RentSplitService {
   }
 
   addMember(member: Omit<Member, 'id' | 'isActive'>) {
+    this.addMembers([member]);
+  }
+
+  addMembers(newMembers: Omit<Member, 'id' | 'isActive'>[]) {
+    if (!newMembers || newMembers.length === 0) return;
     const colors = ['#4f46e5', '#059669', '#d97706', '#dc2626', '#7c3aed', '#2563eb', '#db2777', '#0891b2'];
-    const newMember: Member = {
-      ...member,
-      id: 'm_' + Date.now(),
-      phone: member.phone?.trim() ? member.phone.trim() : undefined,
-      joinedDate: member.joinedDate?.trim() ? member.joinedDate.trim() : undefined,
+    const createdMembers: Member[] = newMembers.map((m, idx) => ({
+      ...m,
+      id: 'm_' + (Date.now() + idx) + '_' + Math.random().toString(36).substring(2, 6),
+      phone: m.phone?.trim() ? m.phone.trim() : undefined,
+      joinedDate: m.joinedDate?.trim() ? m.joinedDate.trim() : undefined,
       isActive: true,
-      avatarColor: member.avatarColor || colors[Math.floor(Math.random() * colors.length)],
-    };
-    this.members.update((list) => [...list, newMember]);
-    this.addAudit('Member Added', `Added ${newMember.name} to household`);
+      avatarColor: m.avatarColor || colors[(Math.floor(Math.random() * colors.length) + idx) % colors.length],
+    }));
+
+    this.members.update((list) => [...list, ...createdMembers]);
+    if (createdMembers.length === 1) {
+      this.addAudit('Member Added', `Added ${createdMembers[0].name} to household`);
+    } else {
+      const namesList = createdMembers.map((c) => c.name).join(', ');
+      this.addAudit('Members Added', `Added ${createdMembers.length} roommates (${namesList}) to household`);
+    }
     this.saveToStorage();
   }
 

@@ -2125,12 +2125,15 @@
     </div>
   }
 
-  <!-- ADD MEMBER MODAL -->
+  <!-- ADD ROOMMATES MODAL (SINGLE OR BATCH ENTRY) -->
   @if (showMemberModal()) {
     <div class="modal-backdrop" (click)="closeMemberModal()">
-      <div class="modal-dialog glass-panel" (click)="$event.stopPropagation()">
+      <div class="modal-dialog glass-panel member-batch-modal" (click)="$event.stopPropagation()">
         <div class="modal-header">
-          <h3>Add New Roommate</h3>
+          <div>
+            <h3>Add Roommates</h3>
+            <p class="section-hint" style="margin: 0.2rem 0 0 0;">Add one or multiple flatmates in a single form.</p>
+          </div>
           <button class="btn-close" (click)="closeMemberModal()" title="Close" aria-label="Close">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -2138,42 +2141,133 @@
           </button>
         </div>
 
-        <div class="modal-body">
-          <div class="form-group">
-            <label>Roommate Full Name *</label>
-            <input
-              type="text"
-              placeholder="Full name"
-              [ngModel]="memberNameInput()"
-              (ngModelChange)="memberNameInput.set($event)"
-            />
+        <!-- Roommate Count Increase / Quick Counter Bar -->
+        <div class="member-modal-controls-bar">
+          <div class="member-counter-box">
+            <span class="member-counter-label">Roommates to Add:</span>
+            <div class="member-counter-controls">
+              <button
+                type="button"
+                class="counter-btn"
+                (click)="removeMemberRow(newMembersList().length - 1)"
+                [disabled]="newMembersList().length <= 1"
+                title="Decrease roommates count"
+              >
+                −
+              </button>
+              <span class="counter-display">{{ newMembersList().length }}</span>
+              <button
+                type="button"
+                class="counter-btn"
+                (click)="addMemberRow()"
+                title="Increase roommates count"
+              >
+                +
+              </button>
+            </div>
           </div>
 
-          <div class="form-row">
-            <div class="form-group flex-1">
-              <label>Phone Number <span class="text-muted" style="font-weight: normal; font-size: 0.8rem;">(Optional)</span></label>
-              <input
-                type="text"
-                placeholder="e.g. +91 98765 43210 (Optional)"
-                [ngModel]="memberPhoneInput()"
-                (ngModelChange)="memberPhoneInput.set($event)"
-              />
-            </div>
-            <div class="form-group flex-1">
-              <label>Join Date <span class="text-muted" style="font-weight: normal; font-size: 0.8rem;">(Optional)</span></label>
-              <input
-                type="date"
-                placeholder="YYYY-MM-DD (Optional)"
-                [ngModel]="memberJoinDateInput()"
-                (ngModelChange)="memberJoinDateInput.set($event)"
-              />
-            </div>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline"
+            (click)="addMemberRow()"
+            title="Add another roommate row"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>+ Add Roommate</span>
+          </button>
+        </div>
+
+        @if (memberModalError()) {
+          <div class="notice-banner danger" style="margin: 0.5rem 1.5rem 0; padding: 0.65rem 0.95rem; border-radius: var(--radius-sm); font-size: 0.85rem; color: #dc2626; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25);">
+            {{ memberModalError() }}
           </div>
+        }
+
+        <div class="modal-body member-batch-body">
+          @for (m of newMembersList(); track $index; let idx = $index) {
+            <div class="member-entry-card glass-panel">
+              <div class="member-entry-header">
+                <div class="member-entry-tag">
+                  <span class="member-entry-number">{{ idx + 1 }}</span>
+                  <span class="member-entry-title">Roommate #{{ idx + 1 }}</span>
+                </div>
+                @if (newMembersList().length > 1) {
+                  <button
+                    type="button"
+                    class="btn-remove-entry"
+                    (click)="removeMemberRow(idx)"
+                    title="Remove this roommate row"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                    <span>Remove</span>
+                  </button>
+                }
+              </div>
+
+              <div class="form-group">
+                <label>Roommate Full Name *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Rahul Sharma"
+                  [(ngModel)]="m.name"
+                  (keydown)="onMemberNameKeyDown($event, idx)"
+                />
+              </div>
+
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label>Phone Number <span class="text-muted">(Optional)</span></label>
+                  <input
+                    type="text"
+                    placeholder="e.g. +91 98765 43210"
+                    [(ngModel)]="m.phone"
+                  />
+                </div>
+                <div class="form-group flex-1">
+                  <label>Join Date <span class="text-muted">(Optional)</span></label>
+                  <input
+                    type="date"
+                    [(ngModel)]="m.joinedDate"
+                  />
+                </div>
+              </div>
+            </div>
+          }
+
+          <!-- Quick Add Button at bottom of cards -->
+          <button
+            type="button"
+            class="btn-add-roommate-row"
+            (click)="addMemberRow()"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>+ Add Another Roommate</span>
+          </button>
         </div>
 
         <div class="modal-footer">
           <button class="btn btn-subtle" (click)="closeMemberModal()">Cancel</button>
-          <button class="btn btn-primary" (click)="saveNewMember()">Add Roommate</button>
+          <button
+            type="button"
+            class="btn btn-outline"
+            (click)="saveNewMembers(true)"
+            title="Save current roommates and add more without closing"
+          >
+            Save & Add More
+          </button>
+          <button class="btn btn-primary" (click)="saveNewMembers(false)">
+            {{ getSaveMembersBtnText() }}
+          </button>
         </div>
       </div>
     </div>

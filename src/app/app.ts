@@ -12,6 +12,12 @@ import {
   CustomPreset,
 } from './models/expense.model';
 
+export interface MemberDraft {
+  name: string;
+  phone: string;
+  joinedDate: string;
+}
+
 type ActiveTab = 'dashboard' | 'expenses' | 'slips' | 'payments' | 'roommates';
 
 @Component({
@@ -56,6 +62,10 @@ export class App {
   readonly dueDateInput = signal<string>('');
 
   readonly showMemberModal = signal<boolean>(false);
+  readonly newMembersList = signal<MemberDraft[]>([
+    { name: '', phone: '', joinedDate: '' },
+  ]);
+  readonly memberModalError = signal<string>('');
   readonly memberNameInput = signal<string>('');
   readonly memberPhoneInput = signal<string>('');
   readonly memberJoinDateInput = signal<string>('');
@@ -799,31 +809,96 @@ export class App {
 
   // ROOMMATE MANAGEMENT MODAL
   openAddMemberModal() {
-    this.memberNameInput.set('');
-    this.memberPhoneInput.set('');
-    this.memberJoinDateInput.set(''); // Empty by default so it does NOT mistakenly take today's date
+    this.newMembersList.set([{ name: '', phone: '', joinedDate: '' }]);
+    this.memberModalError.set('');
     this.showMemberModal.set(true);
   }
 
   closeMemberModal() {
     this.showMemberModal.set(false);
+    this.memberModalError.set('');
+  }
+
+  addMemberRow() {
+    this.newMembersList.update((list) => [
+      ...list,
+      { name: '', phone: '', joinedDate: '' },
+    ]);
+    this.memberModalError.set('');
+  }
+
+  removeMemberRow(index: number) {
+    this.newMembersList.update((list) => {
+      if (list.length <= 1) {
+        return [{ name: '', phone: '', joinedDate: '' }];
+      }
+      return list.filter((_, i) => i !== index);
+    });
+  }
+
+  onMemberNameKeyDown(event: KeyboardEvent, index: number) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const list = this.newMembersList();
+      if (index === list.length - 1 && list[index].name.trim()) {
+        this.addMemberRow();
+      }
+    }
+  }
+
+  getValidMembersCount(): number {
+    return this.newMembersList().filter((m) => m.name.trim().length > 0).length;
+  }
+
+  getSaveMembersBtnText(): string {
+    const validCount = this.getValidMembersCount();
+    if (validCount > 1) {
+      return `Add ${validCount} Roommates`;
+    }
+    if (this.newMembersList().length > 1) {
+      return `Add ${this.newMembersList().length} Roommates`;
+    }
+    return 'Add Roommate';
+  }
+
+  saveNewMembers(addAnother: boolean = false) {
+    const list = this.newMembersList();
+    const valid = list
+      .map((m) => ({
+        name: m.name.trim(),
+        phone: m.phone.trim() || undefined,
+        joinedDate: m.joinedDate.trim() || undefined,
+        avatarColor: this.getRandomAvatarColor(),
+      }))
+      .filter((m) => m.name.length > 0);
+
+    if (valid.length === 0) {
+      this.memberModalError.set('Please enter at least one roommate name.');
+      return;
+    }
+
+    this.splitService.addMembers(valid);
+
+    const count = valid.length;
+    this.presetSuccessNotification.set(
+      count === 1
+        ? `Added roommate "${valid[0].name}"!`
+        : `Successfully added ${count} roommates!`
+    );
+    setTimeout(() => {
+      this.presetSuccessNotification.set('');
+    }, 4000);
+
+    if (addAnother) {
+      this.newMembersList.set([{ name: '', phone: '', joinedDate: '' }]);
+      this.memberModalError.set('');
+    } else {
+      this.closeMemberModal();
+    }
   }
 
   saveNewMember() {
-    const name = this.memberNameInput().trim();
-    if (!name) {
-      alert('Please enter roommate name.');
-      return;
-    }
-    const phone = this.memberPhoneInput().trim();
-    const joinedDate = this.memberJoinDateInput().trim();
-    this.splitService.addMember({
-      name,
-      phone: phone || undefined,
-      joinedDate: joinedDate || undefined,
-      avatarColor: this.getRandomAvatarColor(),
-    });
-    this.closeMemberModal();
+    this.saveNewMembers(false);
   }
 
   toggleMemberActiveAction(m: Member) {
