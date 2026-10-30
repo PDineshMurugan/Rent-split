@@ -1,0 +1,26 @@
+{
+  "name": "splitmate-mcp",
+  "version": "1.0.0",
+  "description": "Model Context Protocol (MCP) server for SplitMate roommate rent splitting and expense settlement",
+  "main": "index.js",
+  "bin": {
+    "splitmate-mcp": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "rent-split",
+    "expense-sharing",
+    "debt-settlement",
+    "splitmate"
+  ],
+  "author": "Dinesh Murugan",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
