@@ -79,6 +79,38 @@ export class App {
   readonly presetSuccessNotification = signal<string>('');
   readonly showProfileDropdown = signal<boolean>(false);
 
+  // View mode preferences (Cards vs Table)
+  readonly expenseViewMode = signal<'cards' | 'table'>(
+    (typeof localStorage !== 'undefined' && (localStorage.getItem('splitmate_view_expense') as any)) || 'cards'
+  );
+  readonly slipsViewMode = signal<'cards' | 'table'>(
+    (typeof localStorage !== 'undefined' && (localStorage.getItem('splitmate_view_slips') as any)) || 'cards'
+  );
+  readonly roommatesViewMode = signal<'cards' | 'table'>(
+    (typeof localStorage !== 'undefined' && (localStorage.getItem('splitmate_view_roommates') as any)) || 'cards'
+  );
+
+  setExpenseViewMode(mode: 'cards' | 'table') {
+    this.expenseViewMode.set(mode);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('splitmate_view_expense', mode);
+    }
+  }
+
+  setSlipsViewMode(mode: 'cards' | 'table') {
+    this.slipsViewMode.set(mode);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('splitmate_view_slips', mode);
+    }
+  }
+
+  setRoommatesViewMode(mode: 'cards' | 'table') {
+    this.roommatesViewMode.set(mode);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('splitmate_view_roommates', mode);
+    }
+  }
+
   // Mini Calculator State
   readonly showMiniCalc = signal<'expense' | 'payment' | null>(null);
   readonly calcExpression = signal<string>('');

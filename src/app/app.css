@@ -645,6 +645,82 @@
   color: var(--danger-600);
 }
 
+/* VIEW MODE TOGGLE (CARDS VS TABLE) */
+.view-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.view-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: calc(var(--radius-sm) - 2px);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.view-toggle-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.view-toggle-btn.active {
+  background: var(--brand-600);
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.view-toggle-btn svg {
+  flex-shrink: 0;
+}
+
+/* DATA TABLE CONTAINER & HOVER */
+.data-table-container {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  margin-top: 1rem;
+}
+
+.data-table tbody tr {
+  transition: background 0.12s ease;
+}
+
+.data-table tbody tr:hover {
+  background: var(--bg-card-subtle);
+}
+
+.data-table th {
+  white-space: nowrap;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+html:not(.dark) .data-table th {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.data-table td {
+  font-size: 0.85rem;
+}
+
 /* EXPENSES GRID */
 .action-filter-bar {
   display: flex;
