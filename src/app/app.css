@@ -1505,6 +1505,12 @@ html.dark .final-payable-row {
   color: var(--text-muted);
 }
 
+.payers-header-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .payers-input-list {
   display: flex;
   flex-direction: column;
@@ -1515,6 +1521,118 @@ html.dark .final-payable-row {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.currency-input-wrapper {
+  position: relative;
+  flex: 2;
+  display: flex;
+  align-items: center;
+}
+
+.currency-input-wrapper .currency-symbol {
+  position: absolute;
+  left: 0.65rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.currency-input-wrapper input {
+  padding-left: 1.5rem !important;
+  padding-right: 3.5rem !important;
+  width: 100%;
+}
+
+.payer-badge-pill {
+  position: absolute;
+  right: 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+  letter-spacing: 0.3px;
+}
+
+.payer-badge-pill.auto {
+  background: rgba(14, 165, 233, 0.15);
+  color: #0284c7;
+  border: 1px solid rgba(14, 165, 233, 0.3);
+}
+
+.dark .payer-badge-pill.auto {
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.payer-badge-pill.custom {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.dark .payer-badge-pill.custom {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.35);
+}
+
+.payer-tally-bar {
+  margin-top: 0.6rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+  transition: all 0.2s ease;
+}
+
+.payer-tally-bar.match {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.payer-tally-bar.exceed {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.payer-tally-bar .tally-status .status-badge {
+  font-weight: 600;
+  font-size: 0.78rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+.payer-tally-bar .tally-status .status-badge.success {
+  background: rgba(16, 185, 129, 0.2);
+  color: #059669;
+}
+
+.dark .payer-tally-bar .tally-status .status-badge.success {
+  background: rgba(52, 211, 153, 0.2);
+  color: #34d399;
+}
+
+.payer-tally-bar .tally-status .status-badge.danger {
+  background: rgba(239, 68, 68, 0.2);
+  color: #dc2626;
+}
+
+.dark .payer-tally-bar .tally-status .status-badge.danger {
+  background: rgba(248, 113, 113, 0.2);
+  color: #f87171;
+}
+
+.payer-tally-bar .tally-status .status-badge.subtle {
+  color: var(--text-muted);
 }
 
 .participants-checkbox-grid {

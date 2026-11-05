@@ -1722,6 +1722,30 @@
 
         <div class="modal-body" style="padding-top: 1rem;">
           @if (presetModalTab() === 'list') {
+            <!-- Google Sign-in prompt for account presets -->
+            @if (!splitService.cloudSync.currentUser()) {
+              <div class="glass-panel" style="padding: 1rem 1.25rem; margin-bottom: 1rem; border-radius: var(--radius-md); border: 1px dashed var(--border-color); display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+                <div>
+                  <strong style="font-size: 0.92rem; display: block;">Sign in to view your Google Account Presets</strong>
+                  <span class="text-sm text-muted">Sign in with your Google account (dineshmurugan518@gmail.com) to access Indus Anantya Apartments & sync templates across devices.</span>
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                  <button class="btn btn-google-header" (click)="signInWithGoogleAction()" [disabled]="splitService.cloudSync.isAuthLoading()">
+                    <svg width="14" height="14" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                    </svg>
+                    <span>Sign in with Google</span>
+                  </button>
+                  <button class="btn btn-sm btn-subtle" (click)="signInWithGoogleRedirectAction()" [disabled]="splitService.cloudSync.isAuthLoading()" title="Full-page redirect sign-in (recommended if Edge Tracking Prevention or InPrivate blocks popups)">
+                    <span>Full-Page Redirect ↗</span>
+                  </button>
+                </div>
+              </div>
+            }
+
             <!-- Custom Saved Presets Section -->
             <div class="preset-section">
               <div class="section-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
@@ -1922,7 +1946,8 @@
                 <input
                   type="number"
                   placeholder="0.00"
-                  [(ngModel)]="expenseFormAmount"
+                  [ngModel]="expenseFormAmount"
+                  (ngModelChange)="onExpenseAmountChange($event)"
                 />
                 <button
                   type="button"
@@ -2027,34 +2052,84 @@
 
           <!-- Who Paid (Member Credits) -->
           <div class="form-section-header">
-            <h4>Who Paid for this Expense?</h4>
-            <button class="btn btn-sm btn-subtle" (click)="addPayerRow()">
-              + Add Payer Credit
-            </button>
+            <div>
+              <h4>Who Paid for this Expense?</h4>
+              <p class="section-hint" style="margin: 0.15rem 0 0 0;">
+                Amounts auto-balance like Google Pay. If paid from common flat funds, leave empty.
+              </p>
+            </div>
+            <div class="payers-header-controls">
+              @if (expenseFormPayers.length > 1) {
+                <button
+                  type="button"
+                  class="btn btn-sm btn-subtle"
+                  (click)="splitPayersEqually()"
+                  title="Reset and split equally among all selected payers"
+                >
+                  ⚡ Split Equally
+                </button>
+              }
+              <button
+                type="button"
+                class="btn btn-sm btn-subtle"
+                (click)="addPayerRow()"
+                [disabled]="expenseFormPayers.length >= splitService.members().length"
+                title="Add a roommate who paid from personal funds"
+              >
+                + Add Payer Credit
+              </button>
+            </div>
           </div>
-          <p class="section-hint">
-            If paid from common flat funds, leave empty. If a roommate paid from personal funds, add them below to give them credit:
-          </p>
 
           <div class="payers-input-list">
             @for (payer of expenseFormPayers; track $index) {
-              <div class="payer-input-row">
-                <select [(ngModel)]="payer.memberId" style="flex: 2;">
+              <div class="payer-input-row" [class.payer-locked]="payer.isLocked">
+                <select
+                  [ngModel]="payer.memberId"
+                  (ngModelChange)="onPayerMemberChange($index, $event)"
+                  style="flex: 2;"
+                >
                   @for (m of splitService.members(); track m.id) {
                     <option [value]="m.id">{{ m.name }}</option>
                   }
                 </select>
-                <div style="flex: 2; position: relative;">
+                <div class="currency-input-wrapper">
+                  <span class="currency-symbol">₹</span>
                   <input
                     type="number"
-                    placeholder="Amount paid"
-                    [(ngModel)]="payer.amount"
+                    step="any"
+                    placeholder="0.00"
+                    [ngModel]="payer.amount"
+                    (ngModelChange)="onPayerAmountChange($index, $event)"
                   />
+                  @if (payer.isLocked) {
+                    <span class="payer-badge-pill custom" title="Custom manual amount">Custom</span>
+                  } @else if (expenseFormPayers.length > 1) {
+                    <span class="payer-badge-pill auto" title="Auto-balanced amount">Auto</span>
+                  }
                 </div>
-                <button class="btn-icon danger" (click)="removePayerRow($index)">x</button>
+                <button type="button" class="btn-icon danger" (click)="removePayerRow($index)" title="Remove payer">×</button>
               </div>
             }
           </div>
+
+          <!-- Total Payer Summary Live Tally -->
+          @if (expenseFormPayers.length > 0) {
+            <div class="payer-tally-bar" [class.match]="isPayerTotalMatching()" [class.exceed]="isPayerTotalExceeding()">
+              <div class="tally-info">
+                <span>Total Paid Direct: <strong>₹{{ getPayerTotalSum() | number:'1.0-2' }}</strong> of ₹{{ expenseFormAmount || 0 }}</span>
+              </div>
+              <div class="tally-status">
+                @if (isPayerTotalMatching()) {
+                  <span class="status-badge success">✓ 100% Balanced</span>
+                } @else if (isPayerTotalExceeding()) {
+                  <span class="status-badge danger">⚠ Exceeds by ₹{{ (getPayerTotalSum() - (expenseFormAmount || 0)) | number:'1.0-2' }}</span>
+                } @else {
+                  <span class="status-badge subtle">Remaining from flat: ₹{{ ((expenseFormAmount || 0) - getPayerTotalSum()) | number:'1.0-2' }}</span>
+                }
+              </div>
+            </div>
+          }
 
           <!-- Who Shares (Participant Inclusion/Exclusion) -->
           <div class="form-section-header" style="margin-top: 1rem;">

@@ -132,7 +132,7 @@ export class App {
   expenseFormInstalmentTotal = 6;
   expenseFormSplitType: SplitType = 'equal';
   expenseFormParticipants: { [memberId: string]: boolean } = {};
-  expenseFormPayers: { memberId: string; amount: number }[] = [];
+  expenseFormPayers: { memberId: string; amount: number; isLocked?: boolean }[] = [];
 
   // Payment Form State
   paymentFormMemberId = '';
@@ -247,7 +247,7 @@ export class App {
       parts[m.id] = expense.participants.includes(m.id);
     });
     this.expenseFormParticipants = parts;
-    this.expenseFormPayers = expense.payers.map((p) => ({ ...p }));
+    this.expenseFormPayers = expense.payers.map((p) => ({ ...p, isLocked: true }));
     this.showExpenseModal.set(true);
   }
 
@@ -256,18 +256,139 @@ export class App {
     this.editingExpenseId.set(null);
   }
 
+  // SMART PAYERS AUTO-SPLIT (GOOGLE PAY STYLE)
   addPayerRow() {
-    const firstActive = this.splitService.members().find((m) => m.isActive);
-    if (firstActive) {
-      this.expenseFormPayers.push({
-        memberId: firstActive.id,
-        amount: 0,
-      });
-    }
+    const existingIds = new Set(this.expenseFormPayers.map((p) => p.memberId));
+    const nextMember =
+      this.splitService.members().find((m) => m.isActive && !existingIds.has(m.id)) ||
+      this.splitService.members().find((m) => m.isActive) ||
+      this.splitService.members()[0];
+
+    if (!nextMember) return;
+
+    this.expenseFormPayers.push({
+      memberId: nextMember.id,
+      amount: 0,
+      isLocked: false,
+    });
+
+    this.autoBalancePayers();
   }
 
   removePayerRow(index: number) {
     this.expenseFormPayers.splice(index, 1);
+    this.autoBalancePayers();
+  }
+
+  onPayerAmountChange(index: number, newAmount: any) {
+    if (!this.expenseFormPayers[index]) return;
+    const val = parseFloat(newAmount);
+    const num = isNaN(val) ? 0 : Math.max(0, val);
+    this.expenseFormPayers[index].amount = num;
+    this.expenseFormPayers[index].isLocked = true;
+    this.autoBalancePayers(index);
+  }
+
+  onPayerMemberChange(index: number, newMemberId: string) {
+    if (this.expenseFormPayers[index]) {
+      this.expenseFormPayers[index].memberId = newMemberId;
+    }
+  }
+
+  splitPayersEqually() {
+    this.expenseFormPayers.forEach((p) => (p.isLocked = false));
+    this.autoBalancePayers();
+  }
+
+  onExpenseAmountChange(newTotal?: any) {
+    if (newTotal !== undefined) {
+      this.expenseFormAmount = newTotal;
+    }
+    if (this.expenseFormPayers.length > 0) {
+      this.autoBalancePayers();
+    }
+  }
+
+  autoBalancePayers(changedIndex?: number) {
+    const total = Number(this.expenseFormAmount) || 0;
+    const n = this.expenseFormPayers.length;
+    if (n === 0) return;
+
+    // Single payer gets the full amount if none was specifically typed
+    if (n === 1) {
+      if (changedIndex === undefined) {
+        this.expenseFormPayers[0].amount = total;
+      }
+      return;
+    }
+
+    // Identify which payers are manually locked (user-entered)
+    let lockedIndices = this.expenseFormPayers
+      .map((p, idx) => (p.isLocked ? idx : -1))
+      .filter((idx) => idx !== -1);
+
+    // If all payers are locked, unlock another one to absorb balance
+    if (lockedIndices.length >= n) {
+      if (changedIndex !== undefined) {
+        const otherIndices = this.expenseFormPayers.map((_, i) => i).filter((i) => i !== changedIndex);
+        const toUnlock = otherIndices[otherIndices.length - 1];
+        this.expenseFormPayers[toUnlock].isLocked = false;
+        lockedIndices = lockedIndices.filter((i) => i !== toUnlock);
+      } else {
+        this.expenseFormPayers.forEach((p) => (p.isLocked = false));
+        lockedIndices = [];
+      }
+    }
+
+    // Sum of amounts from locked payers
+    const lockedSum = lockedIndices.reduce(
+      (sum, idx) => sum + (Number(this.expenseFormPayers[idx].amount) || 0),
+      0
+    );
+    const remaining = Math.max(0, Math.round((total - lockedSum) * 100) / 100);
+
+    // Unlocked payers absorb the remaining amount equally
+    const unlockedIndices = this.expenseFormPayers
+      .map((p, idx) => (!p.isLocked ? idx : -1))
+      .filter((idx) => idx !== -1);
+
+    if (unlockedIndices.length > 0) {
+      const distributed = this.distributeEqually(remaining, unlockedIndices.length);
+      unlockedIndices.forEach((idx, i) => {
+        this.expenseFormPayers[idx].amount = distributed[i];
+      });
+    }
+  }
+
+  distributeEqually(total: number, count: number): number[] {
+    if (count <= 0) return [];
+    if (count === 1) return [Math.round(total * 100) / 100];
+    const totalCents = Math.round(total * 100);
+    const baseCents = Math.floor(totalCents / count);
+    let remainder = totalCents - baseCents * count;
+    const result: number[] = [];
+    for (let i = 0; i < count; i++) {
+      const extra = remainder > 0 ? 1 : 0;
+      if (remainder > 0) remainder--;
+      result.push((baseCents + extra) / 100);
+    }
+    return result;
+  }
+
+  getPayerTotalSum(): number {
+    return this.expenseFormPayers.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  }
+
+  isPayerTotalMatching(): boolean {
+    const total = Number(this.expenseFormAmount) || 0;
+    const paid = this.getPayerTotalSum();
+    return Math.abs(total - paid) < 0.01 && total > 0;
+  }
+
+  isPayerTotalExceeding(): boolean {
+    const total = Number(this.expenseFormAmount) || 0;
+    const paid = this.getPayerTotalSum();
+    return paid > total + 0.01;
   }
 
   selectAllParticipants(include: boolean) {
@@ -317,6 +438,7 @@ export class App {
     if (res !== null && !isNaN(res) && res >= 0) {
       if (this.showMiniCalc() === 'expense') {
         this.expenseFormAmount = res;
+        this.onExpenseAmountChange();
       } else if (this.showMiniCalc() === 'payment') {
         this.paymentFormAmount = res;
       }
@@ -1024,6 +1146,10 @@ export class App {
         setTimeout(() => this.presetSuccessNotification.set(''), 5000);
       }
     }
+  }
+
+  async signInWithGoogleRedirectAction() {
+    await this.splitService.cloudSync.signInWithGoogleRedirect();
   }
 
   toggleProfileDropdown(event?: Event) {
