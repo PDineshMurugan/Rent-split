@@ -58,6 +58,10 @@ export class App {
   readonly reopenReasonInput = signal<string>('');
 
   readonly showHouseholdModal = signal<boolean>(false);
+  readonly showNewMonthModal = signal<boolean>(false);
+  newMonthKeyInput = signal<string>('');
+  newMonthDueDateInput = signal<string>('');
+  newMonthCopyRecurring = signal<boolean>(true);
   readonly householdNameInput = signal<string>('');
   readonly dueDateInput = signal<string>('');
 
@@ -905,6 +909,78 @@ export class App {
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   }
 
+  // MONTH NAVIGATION & NEW MONTH CREATION
+  get currentRealMonthKey(): string {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  get currentCalendarMonthName(): string {
+    return new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  }
+
+  get currentCalendarMonthShort(): string {
+    return new Date().toLocaleString('en-US', { month: 'short' });
+  }
+
+  isViewingOldMonth(): boolean {
+    return this.splitService.currentMonthKey() !== this.currentRealMonthKey;
+  }
+
+  jumpToCurrentCalendarMonth() {
+    this.splitService.ensureAndSwitchToMonth(this.currentRealMonthKey);
+  }
+
+  onMonthSelectChange(val: string) {
+    if (val === '__NEW_MONTH__') {
+      this.openNewMonthModal();
+    } else {
+      this.splitService.switchMonth(val);
+    }
+  }
+
+  openNewMonthModal() {
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth() + 1;
+    let nextYear = curYear;
+    let nextMonth = curMonth;
+
+    const existingKeys = new Set(this.splitService.months().map((m) => m.key));
+    if (existingKeys.has(`${curYear}-${String(curMonth).padStart(2, '0')}`)) {
+      nextMonth = curMonth + 1;
+      if (nextMonth > 12) {
+        nextMonth = 1;
+        nextYear++;
+      }
+    }
+    const targetKey = `${nextYear}-${String(nextMonth).padStart(2, '0')}`;
+    this.newMonthKeyInput.set(targetKey);
+    this.newMonthDueDateInput.set(`${targetKey}-05`);
+    this.newMonthCopyRecurring.set(true);
+    this.showNewMonthModal.set(true);
+  }
+
+  closeNewMonthModal() {
+    this.showNewMonthModal.set(false);
+  }
+
+  confirmCreateNewMonth() {
+    const key = this.newMonthKeyInput().trim();
+    if (!key) {
+      alert('Please select a valid month.');
+      return;
+    }
+    const dueDate = this.newMonthDueDateInput().trim() || `${key}-05`;
+    const copy = this.newMonthCopyRecurring();
+    const success = this.splitService.createAndSwitchMonth(key, dueDate, copy);
+    if (success) {
+      this.closeNewMonthModal();
+    } else {
+      alert('Failed to create month. Please check the month format.');
+    }
+  }
+
   // REOPEN & FINALIZE MONTH
   finalizeMonthCheck() {
     const tally = this.splitService.tallyResult();
@@ -920,6 +996,9 @@ export class App {
       )
     ) {
       this.splitService.finalizeMonth();
+      if (confirm(`Would you like to start and switch to the next month now?`)) {
+        this.openNewMonthModal();
+      }
     }
   }
 

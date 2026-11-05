@@ -28,21 +28,46 @@
     </div>
 
     <div class="header-right">
-      <!-- Month Switcher -->
-      <div class="month-selector-wrapper">
-        <label for="monthSelect" class="sr-only">Billing Month</label>
-        <select
-          id="monthSelect"
-          class="month-select"
-          [ngModel]="splitService.currentMonthKey()"
-          (ngModelChange)="splitService.switchMonth($event)"
+      <!-- Month Switcher & Controls -->
+      <div class="month-selector-group" style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+        <div class="month-selector-wrapper">
+          <label for="monthSelect" class="sr-only">Billing Month</label>
+          <select
+            id="monthSelect"
+            class="month-select"
+            [ngModel]="splitService.currentMonthKey()"
+            (ngModelChange)="onMonthSelectChange($event)"
+          >
+            @for (m of splitService.months(); track m.key) {
+              <option [value]="m.key">
+                {{ m.name }} {{ m.isFinalized ? '(Locked)' : '(Active)' }}
+              </option>
+            }
+            <option value="__NEW_MONTH__">+ Add New Month...</option>
+          </select>
+        </div>
+
+        @if (isViewingOldMonth()) {
+          <button
+            type="button"
+            class="btn btn-sm btn-subtle"
+            (click)="jumpToCurrentCalendarMonth()"
+            title="Switch to current calendar month ({{ currentCalendarMonthName }})"
+            style="font-size: 0.78rem; padding: 0.35rem 0.65rem;"
+          >
+            Go to {{ currentCalendarMonthShort }}
+          </button>
+        }
+
+        <button
+          type="button"
+          class="btn btn-sm btn-outline"
+          (click)="openNewMonthModal()"
+          title="Add a new billing month (with optional recurring bills copy)"
+          style="padding: 0.35rem 0.65rem; font-size: 0.78rem;"
         >
-          @for (m of splitService.months(); track m.key) {
-            <option [value]="m.key">
-              {{ m.name }} {{ m.isFinalized ? '(Locked)' : '(Active)' }}
-            </option>
-          }
-        </select>
+          + Month
+        </button>
       </div>
 
       <!-- Presets Option -->
@@ -2521,6 +2546,61 @@
         <div class="modal-footer">
           <button class="btn btn-subtle" (click)="closeReopenModal()">Cancel</button>
           <button class="btn btn-warning" (click)="confirmReopenMonth()">Reopen Now</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- CREATE NEW MONTH MODAL -->
+  @if (showNewMonthModal()) {
+    <div class="modal-backdrop" (click)="closeNewMonthModal()">
+      <div class="modal-dialog glass-panel" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div>
+            <h3>Start a New Billing Month</h3>
+            <p class="section-hint" style="margin: 0.2rem 0 0 0;">Create a new month for household rent & expense sharing.</p>
+          </div>
+          <button class="btn-close" (click)="closeNewMonthModal()" title="Close" aria-label="Close">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Billing Month (YYYY-MM) *</label>
+            <input
+              type="month"
+              [ngModel]="newMonthKeyInput()"
+              (ngModelChange)="newMonthKeyInput.set($event)"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Rent / Expense Due Date</label>
+            <input
+              type="date"
+              [ngModel]="newMonthDueDateInput()"
+              (ngModelChange)="newMonthDueDateInput.set($event)"
+            />
+          </div>
+
+          <div class="form-checkbox" style="margin-top: 1rem;">
+            <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.9rem;">
+              <input
+                type="checkbox"
+                [checked]="newMonthCopyRecurring()"
+                (change)="newMonthCopyRecurring.set(!newMonthCopyRecurring())"
+              />
+              <span>Copy recurring expenses from current month (Rent, Wifi, Maid, etc.)</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-subtle" (click)="closeNewMonthModal()">Cancel</button>
+          <button class="btn btn-primary" (click)="confirmCreateNewMonth()">Create & Switch Month</button>
         </div>
       </div>
     </div>

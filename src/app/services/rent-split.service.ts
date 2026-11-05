@@ -869,6 +869,70 @@ export class RentSplitService {
 
   switchMonth(key: string) {
     this.currentMonthKey.set(key);
+    this.saveToStorage();
+  }
+
+  createAndSwitchMonth(
+    targetMonthKey: string,
+    dueDate?: string,
+    copyRecurringExpenses: boolean = true
+  ): boolean {
+    const cleanKey = targetMonthKey.trim();
+    if (!cleanKey || !cleanKey.includes('-')) return false;
+
+    const [year, month] = cleanKey.split('-').map(Number);
+    if (isNaN(year) || isNaN(month) || month < 1 || month > 12) return false;
+
+    const dateObj = new Date(year, month - 1, 1);
+    const monthName = dateObj.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+
+    const existing = this.months().find((m) => m.key === cleanKey);
+    if (!existing) {
+      const newMonth: MonthRecord = {
+        key: cleanKey,
+        name: monthName,
+        dueDate: dueDate || `${cleanKey}-05`,
+        isFinalized: false,
+        previousBalanceCarryOver: {},
+      };
+
+      this.months.update((list) => {
+        const next = [...list, newMonth];
+        return next.sort((a, b) => a.key.localeCompare(b.key));
+      });
+
+      if (copyRecurringExpenses) {
+        const curExpenses = this.currentMonthExpenses();
+        const recurring = curExpenses.filter((e) => e.isRecurring);
+        if (recurring.length > 0) {
+          const cloned: Expense[] = recurring.map((e) => ({
+            ...e,
+            id: 'e_' + Math.random().toString(36).substring(2, 9),
+            monthKey: cleanKey,
+            date: `${cleanKey}-01`,
+            payers: [],
+          }));
+          this.expenses.update((list) => [...list, ...cloned]);
+        }
+      }
+
+      this.addAudit('Month Created', `Created new billing month ${monthName}`);
+    }
+
+    this.currentMonthKey.set(cleanKey);
+    this.saveToStorage();
+    return true;
+  }
+
+  ensureAndSwitchToMonth(key: string) {
+    const cleanKey = key.trim();
+    const existing = this.months().find((m) => m.key === cleanKey);
+    if (!existing) {
+      this.createAndSwitchMonth(cleanKey, `${cleanKey}-05`, false);
+    } else {
+      this.currentMonthKey.set(cleanKey);
+      this.saveToStorage();
+    }
   }
 
   finalizeMonth() {
@@ -957,12 +1021,48 @@ export class RentSplitService {
           const isIndus = data.householdName === 'Indus Anantya Apartments';
           if (!isIndus) {
             if (data.householdName) this.householdName.set(data.householdName);
-            if (data.currentMonthKey) this.currentMonthKey.set(data.currentMonthKey);
             if (data.members) this.members.set(data.members);
-            if (data.months) this.months.set(data.months);
             if (data.expenses) this.expenses.set(data.expenses);
             if (data.payments) this.payments.set(data.payments);
             if (data.auditLogs) this.auditLogs.set(data.auditLogs);
+
+            let loadedMonths: MonthRecord[] = Array.isArray(data.months) && data.months.length > 0
+              ? [...data.months]
+              : getInitialMonths();
+
+            // Real-world current calendar month
+            const now = new Date();
+            const curYear = now.getFullYear();
+            const curMonth = String(now.getMonth() + 1).padStart(2, '0');
+            const curKey = `${curYear}-${curMonth}`;
+            const curName = now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+
+            // Automatically ensure current calendar month is always available in the months list
+            if (!loadedMonths.some((m) => m.key === curKey)) {
+              loadedMonths.push({
+                key: curKey,
+                name: curName,
+                dueDate: `${curKey}-05`,
+                isFinalized: false,
+                previousBalanceCarryOver: {},
+              });
+            }
+
+            loadedMonths.sort((a, b) => a.key.localeCompare(b.key));
+            this.months.set(loadedMonths);
+
+            // If a previous month was saved, check if it was finalized
+            // If the old month was finalized, automatically switch to current month
+            const savedMonth = loadedMonths.find((m) => m.key === data.currentMonthKey);
+            if (savedMonth && !savedMonth.isFinalized) {
+              this.currentMonthKey.set(data.currentMonthKey);
+            } else if (savedMonth && savedMonth.isFinalized && savedMonth.key !== curKey) {
+              this.currentMonthKey.set(curKey);
+            } else if (data.currentMonthKey && loadedMonths.some((m) => m.key === data.currentMonthKey)) {
+              this.currentMonthKey.set(data.currentMonthKey);
+            } else {
+              this.currentMonthKey.set(curKey);
+            }
           }
         }
 
