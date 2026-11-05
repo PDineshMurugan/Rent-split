@@ -229,7 +229,7 @@ export class CloudSyncService {
     }
   }
 
-  // Google Sign-In (1-Click Popup)
+  // Google Sign-In (1-Click Popup with Automatic Redirect Fallback)
   async signInWithGoogle(): Promise<boolean> {
     if (!this.isConfigured() || !this.auth) {
       this.syncError.set('Firebase is not configured yet. Please configure Firebase settings first.');
@@ -238,6 +238,10 @@ export class CloudSyncService {
 
     this.isAuthLoading.set(true);
     this.syncError.set(null);
+
+    const isLocalhost =
+      typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
     try {
       const provider = new GoogleAuthProvider();
@@ -255,39 +259,44 @@ export class CloudSyncService {
       this.isAuthLoading.set(false);
       return true;
     } catch (err: any) {
-      console.warn('Google sign-in error:', err);
+      console.warn('Google sign-in popup error/code:', err?.code, err);
 
-      const isLocalhost =
-        typeof window !== 'undefined' &&
-        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      // In production browsers (especially Microsoft Edge / Safari / mobile),
+      // popup communication can be severed or closed by browser tracking prevention or COOP.
+      // Automatically fallback to signInWithRedirect so the user is never stuck.
+      if (
+        !isLocalhost &&
+        this.auth &&
+        (err.code === 'auth/popup-closed-by-user' ||
+          err.code === 'auth/popup-blocked' ||
+          err.code === 'auth/cancelled-popup-request')
+      ) {
+        try {
+          console.info('Switching to Google Sign-In redirect flow...');
+          const provider = new GoogleAuthProvider();
+          provider.setCustomParameters({ prompt: 'select_account' });
+          await signInWithRedirect(this.auth, provider);
+          return false;
+        } catch (redirectErr: any) {
+          console.error('Redirect sign-in fallback error:', redirectErr);
+          this.isAuthLoading.set(false);
+          this.syncError.set(redirectErr.message || 'Sign-in failed.');
+          return false;
+        }
+      }
 
+      this.isAuthLoading.set(false);
       if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
-        this.isAuthLoading.set(false);
         this.syncError.set('Sign-in cancelled.');
         return false;
       }
 
-      // If popup was blocked by browser
+      // If popup was blocked by browser on localhost
       if (err.code === 'auth/popup-blocked') {
-        if (!isLocalhost && this.auth) {
-          try {
-            const provider = new GoogleAuthProvider();
-            provider.setCustomParameters({ prompt: 'select_account' });
-            await signInWithRedirect(this.auth, provider);
-            return false;
-          } catch (redirectErr: any) {
-            this.isAuthLoading.set(false);
-            this.syncError.set(redirectErr.message || 'Sign-in failed.');
-            return false;
-          }
-        }
-
-        this.isAuthLoading.set(false);
         this.syncError.set('Pop-up was blocked. Please allow pop-ups for localhost in your browser address bar.');
         return false;
       }
 
-      this.isAuthLoading.set(false);
       if (err.code === 'auth/unauthorized-domain') {
         this.syncError.set('Domain is not authorized in Firebase Console.');
       } else if (err.code === 'auth/operation-not-allowed') {
