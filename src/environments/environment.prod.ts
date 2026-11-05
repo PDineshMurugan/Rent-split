@@ -3,7 +3,7 @@ export const environment = {
   production: true,
   firebase: {
     apiKey: 'AIzaSyD49VMslF8k0BDLmB5i8985PTFnKZDkxmw',
-    authDomain: 'rentspliter.netlify.app',
+    authDomain: 'rentspliterdm.firebaseapp.com',
     projectId: 'rentspliterdm',
     storageBucket: 'rentspliterdm.firebasestorage.app',
     messagingSenderId: '468208014194',

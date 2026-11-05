@@ -75,9 +75,15 @@ export class CloudSyncService {
 
       // Check environment first
       if (environment?.firebase?.apiKey && environment?.firebase?.projectId) {
-        const envConfig: FirebaseConfig = environment.firebase;
+        const envConfig: FirebaseConfig = {
+          ...environment.firebase,
+          authDomain: 'rentspliterdm.firebaseapp.com',
+        };
         this.firebaseConfig.set(envConfig);
         this.initFirebase(envConfig);
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(FIREBASE_CONFIG_KEY, JSON.stringify(envConfig));
+        }
         return;
       }
 
@@ -97,15 +103,6 @@ export class CloudSyncService {
 
   private initFirebase(config: FirebaseConfig): boolean {
     try {
-      // When hosted on Netlify, use same-domain authDomain so requests to /__/auth/*
-      // are first-party and proxied cleanly to Firebase (bypassing third-party cookie/tracking blocks)
-      if (typeof window !== 'undefined' && window.location.hostname.endsWith('netlify.app')) {
-        config = {
-          ...config,
-          authDomain: window.location.hostname,
-        };
-      }
-
       if (getApps().length === 0) {
         this.app = initializeApp(config);
       } else {
@@ -229,7 +226,7 @@ export class CloudSyncService {
     }
   }
 
-  // Google Sign-In (1-Click Popup with Automatic Redirect Fallback)
+  // Google Sign-In (1-Click Popup with Fallback)
   async signInWithGoogle(): Promise<boolean> {
     if (!this.isConfigured() || !this.auth) {
       this.syncError.set('Firebase is not configured yet. Please configure Firebase settings first.');
@@ -238,10 +235,6 @@ export class CloudSyncService {
 
     this.isAuthLoading.set(true);
     this.syncError.set(null);
-
-    const isLocalhost =
-      typeof window !== 'undefined' &&
-      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
     try {
       const provider = new GoogleAuthProvider();
@@ -260,40 +253,28 @@ export class CloudSyncService {
       return true;
     } catch (err: any) {
       console.warn('Google sign-in popup error/code:', err?.code, err);
-
-      // In production browsers (especially Microsoft Edge / Safari / mobile),
-      // popup communication can be severed or closed by browser tracking prevention or COOP.
-      // Automatically fallback to signInWithRedirect so the user is never stuck.
-      if (
-        !isLocalhost &&
-        this.auth &&
-        (err.code === 'auth/popup-closed-by-user' ||
-          err.code === 'auth/popup-blocked' ||
-          err.code === 'auth/cancelled-popup-request')
-      ) {
-        try {
-          console.info('Switching to Google Sign-In redirect flow...');
-          const provider = new GoogleAuthProvider();
-          provider.setCustomParameters({ prompt: 'select_account' });
-          await signInWithRedirect(this.auth, provider);
-          return false;
-        } catch (redirectErr: any) {
-          console.error('Redirect sign-in fallback error:', redirectErr);
-          this.isAuthLoading.set(false);
-          this.syncError.set(redirectErr.message || 'Sign-in failed.');
-          return false;
-        }
-      }
-
       this.isAuthLoading.set(false);
+
       if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
         this.syncError.set('Sign-in cancelled.');
         return false;
       }
 
-      // If popup was blocked by browser on localhost
+      // If popup was blocked by browser, try redirect as fallback
       if (err.code === 'auth/popup-blocked') {
-        this.syncError.set('Pop-up was blocked. Please allow pop-ups for localhost in your browser address bar.');
+        if (this.auth) {
+          try {
+            console.info('Pop-up was blocked, attempting redirect sign-in...');
+            const provider = new GoogleAuthProvider();
+            provider.setCustomParameters({ prompt: 'select_account' });
+            await signInWithRedirect(this.auth, provider);
+            return false;
+          } catch (rErr: any) {
+            this.syncError.set('Pop-up was blocked. Please allow pop-ups for this site in your browser.');
+            return false;
+          }
+        }
+        this.syncError.set('Pop-up was blocked. Please allow pop-ups for this site in your browser.');
         return false;
       }
 
