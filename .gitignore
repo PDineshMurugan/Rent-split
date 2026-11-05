@@ -33,6 +33,7 @@ yarn-error.log
 # Miscellaneous
 /.angular/cache
 .sass-cache/
+.firebase/
 /connect.lock
 /coverage
 /libpeerconnection.log

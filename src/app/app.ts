@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RentSplitService } from './services/rent-split.service';
@@ -81,6 +81,8 @@ export class App {
   readonly newPresetIncludeMembers = signal<boolean>(true);
   readonly newPresetIncludeExpenses = signal<boolean>(true);
   readonly presetSuccessNotification = signal<string>('');
+  readonly cloudSaveFeedback = signal<string>('');
+  readonly isCloudSaving = signal<boolean>(false);
   readonly showProfileDropdown = signal<boolean>(false);
 
   // View mode preferences (Cards vs Table)
@@ -1209,6 +1211,37 @@ export class App {
   async deleteCustomPresetAction(preset: CustomPreset, event?: Event) {
     if (event) event.stopPropagation();
     await this.splitService.deleteCustomPreset(preset.id);
+  }
+
+  // CLOUD SAVE & KEYBOARD SHORTCUTS
+  @HostListener('window:keydown', ['$event'])
+  handleKeyboardShortcuts(event: KeyboardEvent) {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+      event.preventDefault();
+      this.saveToCloudAction();
+    }
+  }
+
+  async saveToCloudAction() {
+    if (!this.splitService.cloudSync.currentUser() && !this.splitService.cloudSync.householdSyncCode()) {
+      if (confirm('Sign in with Google to enable instant Cloud Sync across all your devices?')) {
+        await this.signInWithGoogleAction();
+      }
+      return;
+    }
+
+    this.isCloudSaving.set(true);
+    const success = await this.splitService.saveAllToCloudNow();
+    this.isCloudSaving.set(false);
+
+    if (success) {
+      this.cloudSaveFeedback.set('✓ Saved to Cloud successfully!');
+      setTimeout(() => this.cloudSaveFeedback.set(''), 3000);
+    } else {
+      const err = this.splitService.cloudSync.syncError() || 'Could not save to Cloud.';
+      this.cloudSaveFeedback.set(err);
+      setTimeout(() => this.cloudSaveFeedback.set(''), 4000);
+    }
   }
 
   // GOOGLE SIGN-IN ACTIONS

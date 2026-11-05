@@ -197,11 +197,12 @@ export class RentSplitService {
     this.cleanLegacyStorageAndLoad();
     this.initCloudAutoListener();
 
-    // Auto-sync cloud presets when Google account signs in
+    // Auto-sync cloud presets and data when Google account signs in
     effect(() => {
       const user = this.cloudSync.currentUser();
       if (user) {
         this.syncCloudPresetsOnLogin();
+        this.restoreCloudDataOnLogin();
       } else {
         // When logged out, remove any private presets from memory
         this._internalPresets.update((list) =>
@@ -209,6 +210,32 @@ export class RentSplitService {
         );
       }
     });
+  }
+
+  // Restore saved cloud household data on login
+  async restoreCloudDataOnLogin() {
+    try {
+      const user = this.cloudSync.currentUser();
+      if (!user) return;
+
+      const cloudData = await this.cloudSync.pullDataFromCloud();
+      if (cloudData) {
+        const hasExpenses = Array.isArray(cloudData.expenses) && cloudData.expenses.length > 0;
+        const hasMembers = Array.isArray(cloudData.members) && cloudData.members.length > 0;
+        const isLocalEmpty = this.expenses().length === 0 && this.members().length === 0;
+
+        if (hasExpenses || hasMembers || isLocalEmpty) {
+          this.loadCloudDataPayload(cloudData);
+        }
+      } else {
+        // If no cloud backup exists yet, save current local state to cloud as initial backup
+        if (this.members().length > 0 || this.expenses().length > 0) {
+          await this.cloudSync.pushDataToCloud(this.getCloudDataPayload());
+        }
+      }
+    } catch (e) {
+      console.warn('Auto restore cloud data on login error:', e);
+    }
   }
 
   // Sync presets stored in user's Google Cloud account
@@ -314,12 +341,21 @@ export class RentSplitService {
     }
   }
 
-  private triggerCloudAutoSync() {
-    if (this.cloudSync.syncStatus() === 'connected' && this.cloudSync.isAutoSync()) {
-      if (this.autoSyncTimer) clearTimeout(this.autoSyncTimer);
+  triggerCloudAutoSync(immediate: boolean = false) {
+    const isCloudReady =
+      (this.cloudSync.syncStatus() === 'connected' || !!this.cloudSync.currentUser()) &&
+      this.cloudSync.isAutoSync();
+
+    if (!isCloudReady) return;
+
+    if (this.autoSyncTimer) clearTimeout(this.autoSyncTimer);
+
+    if (immediate) {
+      this.cloudSync.pushDataToCloud(this.getCloudDataPayload());
+    } else {
       this.autoSyncTimer = setTimeout(() => {
         this.cloudSync.pushDataToCloud(this.getCloudDataPayload());
-      }, 1500);
+      }, 600);
     }
   }
 
@@ -945,7 +981,7 @@ export class RentSplitService {
       )
     );
     this.addAudit('Month Finalized', `Locked calculations for ${this.activeMonth().name}`);
-    this.saveToStorage();
+    this.saveToStorage(true, true);
   }
 
   reopenMonth(reason: string) {
@@ -958,7 +994,7 @@ export class RentSplitService {
       )
     );
     this.addAudit('Month Reopened', `Reopened ${this.activeMonth().name} - Reason: ${reason}`);
-    this.saveToStorage();
+    this.saveToStorage(true, true);
   }
 
   toggleDarkMode() {
@@ -983,7 +1019,7 @@ export class RentSplitService {
     this.auditLogs.update((list) => [newLog, ...list.slice(0, 49)]);
   }
 
-  private saveToStorage(syncCloud: boolean = true) {
+  saveToStorage(syncCloud: boolean = true, immediateCloud: boolean = false) {
     try {
       if (typeof localStorage !== 'undefined') {
         const payload = {
@@ -998,11 +1034,22 @@ export class RentSplitService {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
       }
       if (syncCloud) {
-        this.triggerCloudAutoSync();
+        this.triggerCloudAutoSync(immediateCloud);
       }
     } catch (e) {
       console.warn('Storage save error:', e);
     }
+  }
+
+  // Force an immediate sync and backup to Cloud Firestore
+  async saveAllToCloudNow(): Promise<boolean> {
+    this.saveToStorage(false); // save local synchronously first
+    const payload = this.getCloudDataPayload();
+    const success = await this.cloudSync.pushDataToCloud(payload);
+    if (success) {
+      this.addAudit('Cloud Saved', 'Manually saved all household data to Cloud');
+    }
+    return success;
   }
 
   private cleanLegacyStorageAndLoad() {
@@ -1016,10 +1063,8 @@ export class RentSplitService {
 
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
-          const data = JSON.parse(raw);
-          // Only restore flat workspace if it is not restricted to a specific account
-          const isIndus = data.householdName === 'Indus Anantya Apartments';
-          if (!isIndus) {
+          try {
+            const data = JSON.parse(raw);
             if (data.householdName) this.householdName.set(data.householdName);
             if (data.members) this.members.set(data.members);
             if (data.expenses) this.expenses.set(data.expenses);
@@ -1063,6 +1108,8 @@ export class RentSplitService {
             } else {
               this.currentMonthKey.set(curKey);
             }
+          } catch (pe) {
+            console.warn('Storage JSON parse error:', pe);
           }
         }
 
